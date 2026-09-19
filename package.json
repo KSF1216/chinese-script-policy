@@ -1,7 +1,7 @@
 {
   "name": "chinese-script-policy",
-  "version": "1.1.1",
-  "description": "Harness-neutral Traditional Chinese enforcer and offline converter: agent skill, DSH bundle or CLI. Checks one script axis one way at a time plus Cantonese and Japanese-only kanji/word filters. Converts both directions; optional wording preference.",
+  "version": "1.2.0",
+  "description": "Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bundle, CLI). One script axis either way + Cantonese/Japanese-only filters. Converts both ways; optional wording preference. Also: local-LLM proxy, cp950/GBK console scan.",
   "license": "MIT",
   "author": "Matthew Kwan <319604871+KSF1216@users.noreply.github.com>",
   "repository": {

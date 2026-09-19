@@ -97,7 +97,7 @@ git clone https://github.com/KSF1216/chinese-script-policy.git "$env:USERPROFILE
 ```powershell
 dsh plugin --profile web add chinese-script-policy            # 已發布到 npm
 dsh plugin --profile web add github:KSF1216/chinese-script-policy
-dsh plugin --profile web add ./chinese-script-policy-1.1.0.tgz
+dsh plugin --profile web add ./chinese-script-policy-1.2.0.tgz
 ```
 
 > 從 GitHub 直接安裝時，pnpm 會要求你在該 profile 的 `pnpm-workspace.yaml` 加 `allowBuilds`

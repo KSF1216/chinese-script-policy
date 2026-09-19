@@ -203,7 +203,7 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 | 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
-| npm | `1.0.0`（2026-09-17 13:43Z，43 檔）＋ `1.1.0`（2026-09-17 23:27Z，52 檔，shasum `1e2f0e9b…`）＋ **`1.1.1`（2026-09-17 23:33Z，`latest`，52 檔，shasum `6e5e56dd…`）** |
+| npm | `1.0.0`（2026-09-17 13:43Z，43 檔）＋ `1.1.0`（2026-09-17 23:27Z，52 檔，shasum `1e2f0e9b…`）＋ **`1.1.1`（2026-09-17 23:33Z，`latest`，52 檔，shasum `6e5e56dd…`）** ＋ **`1.2.0` 準備中**（本機已 bump、§1 七項全過、`npm pack` 58 檔；等使用者在自己的終端機跑 `npm publish`） |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
@@ -472,9 +472,48 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 **要發布新版本時**（GitHub 推送、`npm publish`、版號規則、動到資料表的額外步驟、
 發錯了怎麼補救）看 [`PUBLISHING.md`](PUBLISHING.md)——那份只給維護者，
 刻意不列入 npm 打包清單。
-## 6. 1.1.0 的發布說明（貼進 GitHub Release 用）
+## 6. 發布說明（貼進 GitHub Release 用）
+
+### 1.2.0 — 本機 LLM 的輸出把關、執行時編碼風險、出貨守門
 
 ```markdown
+### 1.2.0 — 輸出把關、執行時編碼風險、出貨守門
+
+**新增**
+- **`examples/llm-proxy/llm-guard-proxy.mjs`：本機 LLM 的輸出守衛代理**（零依賴，
+  npm script `llm-guard-proxy`）。llama-server 沒有外掛機制，`--logit-bias` 只是降低機率、
+  表達不了詞組，`--grammar` 對散文不實用，所以機械層放在伺服器外面：代理整個 origin
+  （內建網頁照用）、非串流、只讀生成端點的 JSON、**帶 `tool_calls` 的回應絕不改寫**
+  （所以不要指給 agent harness），乾淨的回應逐位元組通過，轉不動的殘留在 log 裡回報。
+  用的是同一份 `guardInspect`／`toTraditional`。
+- **`--console-hazard`：第三條軸（執行時編碼風險）**。找「會印到 console 的行」裡
+  **目標 codepage 編不出來**的字元，計入 exit code。檔案可以是正確繁體卻在執行時崩潰——
+  實測案例是一個 ComfyUI 節點 print 含簡體字的訊息，Windows 主控台 cp950 丟
+  `UnicodeEncodeError`，節點掛掉、連 traceback 都寫不進日誌（症狀看起來像「卡住」）。
+  只綁 `print`／`echo`／`logging`／`logger`／`log`／`console`／`raise`（註解與變數名不算），
+  並在輸出明說這是**啟發式**判斷。
+  `--codepage` 內建 950／936／932／1252／20936；54936（GB18030）與 65001（UTF-8）
+  編得下全部 Unicode，永不回報。⚠️ 命名陷阱：Windows 把 936 叫 `gb2312`，但它其實是 GBK
+  （連繁體都編得出來）；嚴格 GB2312-80 是 20936，它反過來編不出 `體 軟 淨 麵 裡`。
+- 設定卡的標題列改成**跟著設定變**（原本寫死「簡體專有字」，切到「要求簡體」時與同卡的
+  單選標籤自相矛盾——折疊起來時那是唯一看得到的字）。
+
+**修正**
+- 出貨檔案不再含本機資訊：新增**出貨掃描守門**（在 `test:api` 內），照 `package.json` 的
+  `files` 白名單逐一掃。通用樣式隨套件出貨；只在本機成立的名稱放在不進版控的
+  `.ship-deny.txt`——**把名字寫進會出貨的檔案裡就是把它公開，哪怕只是為了禁止它**。
+
+**測試**
+- `test:codepage`（41 項）釘住 codepage 涵蓋表的量測數字；`test:proxy`（30 項）用真的
+  upstream ＋ 真的監聽中的代理測邊界；`test:api` 58 → 61 項；`--console-hazard` 的 8 個
+  CLI 案例進 `selftest-cases.json`。
+
+**資料**
+- `scripts/codepage-repertoire.json`（182 KB）由 `npm run build:codepage` 以 .NET 產生
+  （Node 沒有這些編碼器）。encoder 與 decoder 的 fallback **必須**是 `ExceptionFallback`，
+  否則 .NET 會把編不出來的字換成 `?`，得到「全部都編得出來」的假通過。
+```
+
 ### 1.1.0 — 網頁應用入口、術語改名、文件重排
 
 **新增**
