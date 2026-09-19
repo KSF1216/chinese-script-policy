@@ -626,7 +626,7 @@ description:
 | `package.json` 宣告 `dsh.bundle` | ✅ `{"bundle":{"patch":"./cordis.patch.yml"}}` |
 | `cordis.patch.yml` 形狀 `- insert:` → `id`／`name` | ✅ |
 | 真實可用的程式碼（非佔位／純 README） | ✅ |
-| **repo 建立滿 1 天**（CI 自動檢查） | ⚠️ **09-18 07:23 重建 → 09-19 07:23 起才合格** |
+| **repo 建立滿 1 天**（CI 自動檢查） | ⚠️ **repo 在 09-19 13:47（香港時間）第二次重建 → 09-20 13:47 起才合格**；`-DryRun` 實測會擋（`BLOCKED: … Retry after 2026-09-20 13:47`） |
 | 積極維護 | ✅ |
 | 加 `dsh-plugin` topic | ✅（09-18 加；用 `opencc` 換掉，因為 topics 上限 20 已滿） |
 | 分類貼合 | ✅ `skill` |
@@ -641,9 +641,19 @@ description:
 2. **`tarball:` 的 `latest/download/` 陷阱**（我們不需要，已發 npm）：檔名帶版本號的話，
    提交當天有效、下次發版就 404。
 
+**2026-09-19 15:41（香港時間）現況覆核**：
+目錄的 `plugins.json`（3,644,042 字元、3,727+ 筆）**沒有** `chinese-script-policy`；
+`data/plugins/KSF1216__chinese-script-policy.yml` 與 `.yaml` 兩條路徑都回 **404**
+→ 確實還沒被收錄（目錄不會自動抓，只有 PR 這條路）。
+目錄 repo 現況：**16,228 stars**、142 個 open PR、最後 push 09-19 04:12Z（活躍）。
+`contributing.md`（22,146 字元）覆核後**與 09-18 量測一致**：一檔一外掛、`skill` 類別仍在、
+「repo 至少 1 天」是 CI 自動檢查，格式仍是 `url`／`name`／`category`／（選用 `tarball`）／`description.{en,zh}`。
+
 ### 送 PR
 
 腳本：`~/.dsh/dsh-market-submit.ps1`（`-DryRun` 只印不動作）。它會檢查 repo 年齡 → fork →
 開 `add/chinese-script-policy` 分支 → 用 Contents API 寫入 yml → 開 PR。
-**2026-09-19 07:23（台北）之後**才能送；更早送的話，CI 的 repo-age 檢查會直接擋下來。
+**2026-09-20 13:47（香港時間）之後**才能送；更早送的話，CI 的 repo-age 檢查會直接擋下來
+（腳本自己也會先擋：`-DryRun` 實測在 repo 只有 1.9 小時大時就回
+`BLOCKED … Retry after 2026-09-20 13:47`，所以提前跑是 no-op，不會送出被退的 PR）。
 
