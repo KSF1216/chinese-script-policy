@@ -113,9 +113,55 @@ node scripts/tradzh.js --read FILE.md       # 用偵測到的編碼解出來，�
 
 ## `.ps1` 一律純 ASCII
 
+> 本節是 `SKILL.md`〈檔案類型陷阱（Windows）〉的**細節與實測**。
+> **規則本身只寫在 `SKILL.md`**，這裡只補成因、實例與量測。
+
 **PowerShell 5.1 用 ANSI 讀 `.ps1`**，所以腳本裡直接寫中文會變成語法錯誤
 （實際踩過：檔名 `-Dir` 被誤認、中文註解讓整個腳本無法解析）。
 需要中文時用 base64 承載，或把中文放到 `.md` 裡，腳本只留英文註解。
+
+### 只有「UTF-8 無 BOM」會壞（2026-09-19 實測）
+
+同一句中文、同一台機器、Windows PowerShell 5.1：
+
+| 檔案編碼 | 前 6 bytes | 結果 |
+|---|---|---|
+| UTF-8 **無 BOM** | `23 20 E9 80 99 E6` | ❌ exit 1：`The string is missing the terminator: '.'`（連錯誤訊息本身都是亂碼） |
+| UTF-8 **＋ BOM** | `EF BB BF 23 20 E9` | ✅ exit 0，中文正常輸出 |
+| **UTF-16 LE ＋ BOM** | `FF FE 57 00 72 00` | ✅ exit 0 ← **PowerShell ISE 的預設存檔格式** |
+| **cp950（本機 ANSI）無 BOM** | 17 個非 ASCII 位元組 | ✅ exit 0（本機可跑，換一台機器就不行） |
+| 純 ASCII | `23 20 41 53 43 49` | ✅ exit 0 |
+
+> **所以「內容含非 ASCII 就是違規」是錯的判準**：它會擋掉三種真的能跑的檔案，
+> 其中一種還是 PowerShell ISE 的預設格式。會壞的只有「無 BOM 的 UTF-8」那一格。
+
+**既然 BOM 能跑，為什麼本套件選純 ASCII**：工具鏈一律「UTF-8 無 BOM」
+（寫檔用 `UTF8Encoding($false)`，見本文件開頭的通則），BOM 會是一條例外規則；
+BOM 還會被工具無聲加減（`Set-Content -Encoding UTF8` 會加，某些編輯器或複製路徑會去掉），
+同一份檔案就會「有時能跑、有時不能跑」；而且 BOM 會傳染給其他消費者——Node 讀進來開頭多一個
+`\uFEFF`，`JSON.parse` 直接失敗（本套件自己踩過）。**純 ASCII 是唯一在所有 code page 下
+解讀都一致的內容**，別人的 ANSI 可能是 cp1252／cp932／cp936，同一份檔案在每台機器壞法不同。
+
+### `.cmd`／`.bat`：純 ASCII ＋ CRLF
+
+cmd.exe 與 PowerShell 5.1 一樣用 ANSI 讀，所以「純 ASCII」的理由相同。
+**額外的坑是換行**：cmd.exe 的剖析器期待 CRLF，只有 LF 時
+
+- `goto :label`／`call :label` 會找錯位置或直接跳過（標籤比對是逐 byte 的）；
+- `set /p` 讀進來的值可能夾帶殘留字元或讀成空值；
+- 行末的 `^` 續行、`for /f` 的輸出解析也會跟著錯。
+
+檔案本身看起來完全正常（在編輯器裡換行都一樣），只有 cmd.exe 會出怪事，
+所以驗證要看**位元組**而不是看畫面：
+
+```powershell
+$b = [IO.File]::ReadAllBytes('x.cmd')
+($b | Where-Object { $_ -gt 127 }).Count                                # 0 = 純 ASCII
+([regex]::Matches([Text.Encoding]::ASCII.GetString($b), "\r\n")).Count  # > 0 = 有 CRLF
+```
+
+（實測：UTF-8 ＋ BOM 的 `.cmd`、以及 cp950 的 `.cmd` 都能跑、中文也正常——
+跟 `.ps1` 一樣，會壞的只有「無 BOM 的 UTF-8」，所以這條機械檢查預設只警告、不擋。）
 
 `scripts/audit-glyph-list.ps1` 就是照這個規則寫的：**0 個非 ASCII 位元組**，
 字例全部放在 `THIRD-PARTY-NOTICES.md` 與 `references/glyph-table.md`。

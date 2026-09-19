@@ -83,7 +83,14 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
     script: traditional      # 這個專案存哪一種寫法：traditional / simplified / off
     register: true           # 粵語口語（語體）
     japanese: true           # 日文專有字詞
+    fileTypes: warn          # Windows 腳本檔類型（.ps1／.cmd）：off / warn / block
 ```
+
+`fileTypes` 是**另一種規則**：上面幾條看的是「內容裡的中文」，這一條看的是**檔案類型**——
+`.ps1` 寫入含非 ASCII 的內容會是語法錯誤，`.cmd`／`.bat` 則有 ANSI 與 LF 的坑
+（規則本身在 `SKILL.md` 的〈檔案類型陷阱〉，成因與實測在 `references/encoding.md`）。
+它**預設只警告**：作用域是別人的檔案，預設擋會讓沒聽過這個套件的人一頭霧水；
+`block` 也只對真的會壞的 `.ps1` 生效，`.cmd`／`.bat` 永遠只警告。細節見下節。
 
 `script` 是**三選一**而不是勾選框，因為「哪一種寫法才是對的」取決於專案：
 
@@ -94,6 +101,39 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
 | `off` | 不檢查腳本軸，只查語體與日文 |
 
 （舊版的設定檔把這裡存成布林：`true` ＝ `traditional`、`false` ＝ `off`，讀進來仍然照原意運作。）
+
+### 檔案類型陷阱：`.ps1`／`.cmd` 的寫入（`fileTypes`）
+
+這一條**不是中文軸**：上面幾條看的是「內容裡的中文」，它看的是**寫入的檔案類型**。
+判準很窄，只有兩格會成立：
+
+| 目標 | 什麼時候成立 | 天生嚴重度 |
+|---|---|---|
+| `.ps1`／`.psm1` | 內容含**任何非 ASCII 字元** | **擋下**（真的會壞：寫入工具一律寫「UTF-8 無 BOM」，而 PowerShell 5.1 用 ANSI 讀 `.ps1`） |
+| `.cmd`／`.bat` | 內容含非 ASCII 字元 | 只警告（實測仍能跑，只是換一台機器會亂碼） |
+| `.cmd`／`.bat` | **只有 LF、沒有 CRLF** | 只警告（`goto` 會跳錯標籤、`set /p` 讀成空值） |
+
+`fileTypes` 三選一：`off`（不檢查）／`warn`（**預設**，一律只警告）／`block`
+（照上表的「天生嚴重度」——所以 `block` 只會讓 `.ps1` 真的被擋，`.cmd` 永遠只警告）。
+
+三個刻意設計：
+
+1. **預設 `warn`**：這條規則的作用域是**別人的機器、別人的檔案**，預設擋會讓沒聽過這個套件的人一頭霧水。
+2. **只看寫入，不掃描既有檔案**：它判斷的是「即將寫入的內容」，不是磁碟上已有的檔案——
+   別人既有的 UTF-16 或帶 BOM 的腳本不會被碰。
+3. **fail-open**：與其他守衛同一個原則——判斷函式丟錯就放行，`fileTypeTrap` 對空路徑、
+   非字串內容一律回 `undefined`。
+
+**純 ASCII 的腳本永遠不會觸發**（最常見的情況沒有誤報）。反向案例的情況值得講清楚：
+「UTF-16 或帶 BOM 的 `.ps1` 能跑」是真的（實測見 `references/encoding.md`），但那是**既有檔案**的性質；
+這個守衛看到的是**解碼後的字串**，而寫入工具一律寫「UTF-8 無 BOM」，所以「含非 ASCII 就要擋」
+在**寫入**這一刻是正確的判準（在掃描既有檔案時才會變成誤報機器——這正是它不掃既有檔案的原因之一）。
+`scripts/plugin-selftest.mjs` 因而改釘**行為**：純 ASCII 放行、`.md`／`read` 不觸發、
+`.cmd` 的 `block` 仍只警告、CRLF 放行而純 LF 觸發。
+
+> **目前只有 DSH 外掛有這個開關**：`hooks.json`（Claude Code 格式）那條路只跑
+> `guardInspect`，不含檔案類型規則。要一致就得在 `pre-write-check.js` 也接上，
+> 但那裡沒有設定檔可讀（hook 的環境沒有 `$DSH_HOME`，見上），所以先留在外掛。
 
 ### Claude Code／其他 harness：用 `hooks.json`
 

@@ -25,8 +25,11 @@ $out = Join-Path $PSScriptRoot 'codepage-repertoire.json'
 #
 # Note the naming trap, measured 2026-09-18: Windows calls codepage 936 "gb2312", but 936 is
 # really GBK - it encodes every common Traditional character too (only emoji fail). The
-# STRICT GB2312-80 repertoire is 20936 (x-cp20936), which cannot encode 體 軟 淨 麵 裡, so it
-# fails in the opposite direction: a Traditional document crashes on a GB2312 console.
+# STRICT GB2312-80 repertoire is 20936 (x-cp20936), which cannot encode the five common
+# characters U+9AD4 U+8EDF U+6DE8 U+9EB5 U+88E1, so it fails in the opposite direction:
+# a Traditional document crashes on a GB2312 console. (The code points are spelled out
+# because this file has to stay ASCII - see the header. scripts/codepage-selftest.mjs
+# asserts those five are missing from 20936, so the claim is checked, not just stated.)
 #
 # 54936 (GB18030) and 65001 (UTF-8) encode every Unicode character, so they are recorded in
 # coversAll instead of shipping a table that would be pointless.

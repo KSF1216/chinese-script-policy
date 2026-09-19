@@ -293,6 +293,75 @@ function consoleHazards(text, options = {}) {
   return { lines, chars: [...seen], codePage, universal: false };
 }
 
+// ------------------------------------------- Windows script-file type traps -----
+// A different KIND of rule from every axis above: those look at the Chinese in the content,
+// this one looks at the FILE TYPE. Both traps were measured (references/encoding.md):
+//
+//   * a .ps1 that is UTF-8 WITHOUT a BOM and contains any non-ASCII byte does not parse on
+//     Windows PowerShell 5.1 - `The string is missing the terminator` - while the same text
+//     as UTF-8+BOM, as UTF-16, or as ANSI (cp950) runs fine. The write tools always write
+//     UTF-8 with NO BOM (writeTextUtf8 uses UTF8Encoding(false)), so for a WRITE the trap
+//     reduces to: target is a PowerShell script AND the content has any non-ASCII character.
+//   * a .cmd/.bat with LF-only line endings makes cmd.exe's `goto` / `set /p` misbehave.
+//
+// Two properties are deliberate:
+//   * it never reads or scans an existing file - it judges only the content being written,
+//     so a UTF-16 or BOM-carrying file already on someone's disk is left alone;
+//   * a pure-ASCII script can never trigger it, so the common case has no false positives.
+const POWER_SHELL_SUFFIX = /\.(ps1|psm1)$/i;
+const CMD_SUFFIX = /\.(cmd|bat)$/i;
+const NON_ASCII = /[^\x00-\x7F]/;
+
+/**
+ * Judge one write by its TARGET TYPE alone.
+ *
+ * `severity` is what the trap deserves on its own merits: 'block' when the file really would
+ * not run, 'warn' when it will probably still run (measured: a UTF-8 .cmd does run). The
+ * caller may downgrade everything to 'warn' - which is the default, because this rule acts
+ * on other people's files.
+ *
+ * @param {string} filePath - where the tool is writing.
+ * @param {string} content - the text about to be written.
+ * @returns {{reason: string, severity: 'block'|'warn'}|undefined}
+ */
+function fileTypeTrap(filePath, content) {
+  const target = typeof filePath === 'string' ? filePath : '';
+  if (!target) return undefined;
+  const text = String(content == null ? '' : content);
+  if (POWER_SHELL_SUFFIX.test(target) && NON_ASCII.test(text)) {
+    return {
+      severity: 'block',
+      reason: 'BLOCKED by chinese-script-policy (file type): ' + target + ' is a PowerShell ' +
+        'script and the content has non-ASCII characters. The write tools write UTF-8 WITHOUT ' +
+        'a BOM, and Windows PowerShell 5.1 reads .ps1 as ANSI, so the file will not parse ' +
+        '(measured: "The string is missing the terminator"). Three ways out: keep the script ' +
+        'pure ASCII (put the Chinese in a .md/.json and read it at run time), write UTF-8 WITH ' +
+        'a BOM, or generate the file from Node. This rule judges the write only - it never ' +
+        'scans existing files.',
+    };
+  }
+  if (!CMD_SUFFIX.test(target)) return undefined;
+  if (NON_ASCII.test(text)) {
+    return {
+      severity: 'warn',
+      reason: 'chinese-script-policy (file type): ' + target + ' is a batch file with ' +
+        'non-ASCII characters. cmd.exe reads .cmd/.bat as ANSI, so that text is mojibake for ' +
+        'anyone on a different code page - it usually still runs (measured), which is why ' +
+        'this one warns instead of blocking. Keep .cmd/.bat pure ASCII and put the Chinese in ' +
+        'a .md/.json.',
+    };
+  }
+  if (/\n/.test(text) && !/\r\n/.test(text)) {
+    return {
+      severity: 'warn',
+      reason: 'chinese-script-policy (file type): ' + target + ' has LF-only line endings. ' +
+        'cmd.exe expects CRLF; with bare LF, `goto` can jump to the wrong label and `set /p` ' +
+        'can read an empty value. Write CRLF (or keep the batch file to a single line).',
+    };
+  }
+  return undefined;
+}
+
 // ------------------------------------------------------- write-time guard -----
 // The single decision behind BOTH write guards: the CLI hook
 // (scripts/pre-write-check.js, used by Claude Code and by the DSH hooks bridge)
@@ -431,5 +500,6 @@ module.exports = {
   glyphSet, scanText, summarize, ignored, walk, isTextFile, tcVocabTables, compatChars, scanTextCompat, normalizeCompatibility,
   detectEncoding, readTextSmart, decodeBytes, writeTextUtf8, globToRegExp, scriptMix, chineseScore, knownHanzi,
   consoleHazards, codepageTables, codepageSupported, codepageIsUniversal, codepageRepertoire, CODEPAGE_FILE, CONSOLE_SINK,
+  fileTypeTrap, POWER_SHELL_SUFFIX, CMD_SUFFIX,
   LIST_FILE, SKILL_ROOT, SKIP_MARKERS,
 };

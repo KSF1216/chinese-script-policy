@@ -178,9 +178,16 @@ const core = createCore({ simplifiedOnly /* …其餘八份 */ });
 
 | 裝法 | 適合誰 | 開關與設定 |
 |---|---|---|
-| **DSH 外掛**（建議） | DSH | GUI 的設定卡：啟用、腳本三選一、語體與日文開關、擋下／只警告，**存檔立刻生效**。設定卡是**全域**的（改一次所有 profile 一起變）；**每個 profile 要各裝一次**，`headless` 沒有 GUI → 開關走 YAML |
+| **DSH 外掛**（建議） | DSH | GUI 的設定卡：啟用、腳本三選一、語體與日文開關、擋下／只警告、**Windows 腳本檔類型**（`.ps1`／`.cmd`，見下），**存檔立刻生效**。設定卡是**全域**的（改一次所有 profile 一起變）；**每個 profile 要各裝一次**，`headless` 沒有 GUI → 開關走 YAML |
 | **Claude Code／其他 harness** | 支援同一 hook 協定的 harness | 用本套件的 `hooks.json`（`PreToolUse` ＋ matcher `write\|edit`） |
 | **不支援 hook 的環境** | 其他任何環境 | 寫完自己跑 `node scripts\tradzh.js <檔案>` 複查，並把規範寫進系統提示 |
+
+除了中文字，**Windows 的腳本檔類型**另有兩條寫入規則：`.ps1` 要**純 ASCII**，
+`.cmd`／`.bat` 要**純 ASCII ＋ CRLF**——因為 PowerShell 5.1 與 cmd.exe 都用 ANSI 讀腳本，
+無 BOM 的 UTF-8 中文會讓 `.ps1` 直接變成語法錯誤。規則在 `SKILL.md` 的〈檔案類型陷阱〉，
+成因與實測在 `references/encoding.md`。**DSH 外掛**預設對這種寫入**只警告**；
+設定卡可以改成「擋下」或「關閉」——但「擋下」只對真的會壞的 `.ps1` 生效，
+`.cmd`／`.bat`（通常仍能執行）永遠只警告。
 
 細節（hooks.json 全文、`pluginRoot` 為什麼一定要給、不改表也能達成的四件事）
 見 [`references/integration.md`](https://github.com/KSF1216/chinese-script-policy/blob/main/references/integration.md)。

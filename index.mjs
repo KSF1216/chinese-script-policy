@@ -68,10 +68,10 @@ const PATH_FIELDS = ['file_path', 'path', 'file']
  * schema's own `type`/`dict`. Without them describe() throws
  * "registration.schema.toJSON is not a function" - taking EVERY card in the
  * Plugin configuration tab down with it, not just ours. So the resolver carries
- * the same descriptor a schemastery schema would produce for these five fields.
+ * the same descriptor a schemastery schema would produce for these six fields.
  *
  * @param {unknown} value - merged raw layers.
- * @returns {{enabled: boolean, mode: 'block'|'warn', script: 'traditional'|'simplified'|'off', register: boolean, japanese: boolean}}
+ * @returns {{enabled: boolean, mode: 'block'|'warn', script: 'traditional'|'simplified'|'off', register: boolean, japanese: boolean, fileTypes: 'off'|'warn'|'block'}}
  */
 export function resolveSection(value) {
   const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -87,7 +87,12 @@ export function resolveSection(value) {
       : (raw.script === 'off' || raw.script === false) ? 'off'
         : 'traditional',
     register: raw.register !== false,
-    japanese: raw.japanese !== false
+    japanese: raw.japanese !== false,
+    // The Windows file-type traps (lib.fileTypeTrap). It owns a switch of its own, and it
+    // defaults to WARN rather than block on purpose: this rule acts on other people's files,
+    // and blocking by default would look broken to someone who never asked for it.
+    // 'off' | 'warn' (default) | 'block'.
+    fileTypes: raw.fileTypes === 'off' ? 'off' : (raw.fileTypes === 'block' ? 'block' : 'warn')
   }
 }
 
@@ -97,7 +102,8 @@ export const SECTION_FIELDS = {
   mode: { type: 'string' },
   script: { type: 'string' },
   register: { type: 'boolean' },
-  japanese: { type: 'boolean' }
+  japanese: { type: 'boolean' },
+  fileTypes: { type: 'string' }
 }
 
 resolveSection.type = 'object'
@@ -135,6 +141,29 @@ export function inspectWrite(toolName, args, settings) {
     }
   })
   return found ? found.reason : undefined
+}
+
+/**
+ * The file-type traps, as their own entry point.
+ *
+ * Kept separate from inspectWrite on purpose: that function answers "is the Chinese right",
+ * this one answers "will this file type even parse". They own different switches, this one
+ * defaults to warn, and both live here so the plugin and the CLI cannot drift apart.
+ *
+ * @returns {{reason: string, severity: 'block'|'warn'}|undefined}
+ */
+export function inspectFileType(toolName, args, settings) {
+  if (!settings.enabled || settings.fileTypes === 'off') return undefined
+  if (!GUARDED_TOOLS.includes(toolName)) return undefined
+  const pathHit = pickField(args, PATH_FIELDS)
+  const contentHit = pickField(args, CONTENT_FIELDS)
+  if (!pathHit || !contentHit) return undefined
+  const trap = lib.fileTypeTrap(pathHit.value, contentHit.value)
+  if (!trap) return undefined
+  // 'block' asks for the trap's own severity ('block' for the .ps1 case, 'warn' for the
+  // batch-file cases); the default 'warn' downgrades everything, which is what a rule acting
+  // on other people's files should do.
+  return { reason: trap.reason, severity: settings.fileTypes === 'block' ? trap.severity : 'warn' }
 }
 
 function parseFrontmatter(text) {
@@ -198,21 +227,30 @@ export function apply(ctx, config) {
   if (typeof ctx.on !== 'function') return
   ctx.on('tools/pre-execute', async (exec, next) => {
     const settings = current()
-    let reason
+    let hit
     try {
-      reason = inspectWrite(exec && exec.name, (exec && exec.arguments) || {}, settings)
+      const name = exec && exec.name
+      const args = (exec && exec.arguments) || {}
+      // The file-type trap is asked FIRST: a .ps1 written with non-ASCII will not parse on
+      // Windows PowerShell 5.1 whatever the script axis thinks, and it carries its own
+      // severity (warn by default - it acts on other people's files).
+      hit = inspectFileType(name, args, settings)
+      if (!hit) {
+        const reason = inspectWrite(name, args, settings)
+        if (reason) hit = { reason, severity: settings.mode === 'warn' ? 'warn' : 'block' }
+      }
     } catch {
-      reason = undefined // fail open: a broken guard must never break a turn
+      hit = undefined // fail open: a broken guard must never break a turn
     }
-    if (!reason) return next()
-    if (settings.mode === 'warn') {
-      // Warn mode exists for a project that is still migrating: the model is told,
-      // the bytes still land.
+    if (!hit) return next()
+    if (hit.severity === 'warn') {
+      // Warn exists for a project that is still migrating, and for traps that mostly still
+      // work: the model is told, the bytes still land.
       if (ctx.logger && typeof ctx.logger.warn === 'function') {
-        ctx.logger.warn('chinese-script-policy: ' + reason.split('\n')[0])
+        ctx.logger.warn('chinese-script-policy: ' + hit.reason.split('\n')[0])
       }
       return next()
     }
-    return { kind: 'deny', reason }
+    return { kind: 'deny', reason: hit.reason }
   })
 }

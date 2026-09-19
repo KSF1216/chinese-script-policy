@@ -24,6 +24,27 @@ whenToUse: "寫入含有中文的檔案、產生中文內容、審查既有中�
 2. **寫入前的最後確認**：`write` / `edit` 的內容在送出前，先掃過一次。
 3. **寫入後複查**：跑 `tradzh` 確認落地內容乾淨。
 
+### 檔案類型陷阱（Windows）
+
+**同一個寫入動作，有些檔案類型連「非 ASCII」都不能帶。**
+
+| 檔案類型 | 規則 | 為什麼 |
+|---|---|---|
+| `.ps1` | **純 ASCII**（或 UTF-8 加 BOM） | Windows PowerShell 5.1 用 ANSI（cp950）讀 `.ps1`；無 BOM 的 UTF-8 中文會變成語法錯誤，整支腳本無法解析。要中文就把文字放進 `.md`／`.json` 讓腳本讀，或用 base64 承載 |
+| `.cmd`／`.bat` | **純 ASCII ＋ CRLF** | cmd.exe 同樣用 ANSI 讀；只有 LF 會在 `goto`／`set /p` 上出怪事（標籤跳錯、變數讀成空值） |
+
+驗證（`.ps1` 回報 0 ＝ 通過）：
+
+```powershell
+$b = [IO.File]::ReadAllBytes('x.ps1')
+($b | Where-Object { $_ -gt 127 }).Count                                # 0 = 純 ASCII
+([regex]::Matches([Text.Encoding]::ASCII.GetString($b), "\r\n")).Count  # .cmd 要 > 0
+```
+
+**為什麼不是「寫完再轉」**：這是讀取端不懂 UTF-8，不是內容有問題——轉換救不了，只能從寫入端避開。
+
+**為什麼不乾脆用 BOM**：加 BOM 的 `.ps1` 實測可以跑，但本套件的工具鏈一律「UTF-8 無 BOM」（寫檔用 `UTF8Encoding($false)`），BOM 會變成一條例外規則；而 BOM 會被工具無聲加減（同一份檔案有時能跑、有時不能），Node 讀到開頭多一個 `\uFEFF` 還會讓 `JSON.parse` 直接失敗。**純 ASCII 在所有 code page 下解讀都一致**，是唯一不隨機器改變的寫法。成因、實測數據與 `.cmd` 的 CRLF 細節見 `references/encoding.md`。
+
 ### 已有機械強制（hook）
 
 `hooks.json` 提供 **PreToolUse** 攔截：內容含簡體專有字就**擋下寫入**，
@@ -262,5 +283,5 @@ llama-server **沒有外掛機制**（`--logit-bias` 只是降低機率、表達
 | `references/japanese.md` | 要改日文表、想知道 57 個字為什麼被排除、和製漢字為什麼只收 21 個 |  <!-- check-ok -->
 | `references/glyph-table.md` | 要改字表、懷疑假警報，或想知道為什麼某些字不能在清單裡 |
 | `references/conversion.md` | 想理解簡→繁為什麼容易錯、實測數據、什麼時候還需要 OpenCC |
-| `references/encoding.md` | 在 Windows／PowerShell 讀寫中文檔，遇到亂碼、BOM 或編碼問題 |
+| `references/encoding.md` | 在 Windows／PowerShell 讀寫中文檔，遇到亂碼、BOM 或編碼問題；以及〈檔案類型陷阱〉的實測數據與 `.cmd` 的 CRLF 成因 |
 | `PUBLISHING.md` | 要發布新版本（維護者用） |

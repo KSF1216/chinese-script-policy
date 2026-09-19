@@ -32,7 +32,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 
 | 指令 | 防的是什麼 |
 |---|---|
-| `npm test` | 轉換選錯字、粵語／日文偵測過度或不足、**hook 壞掉（它壞掉是無聲的）**、外掛註冊欄位漏掉（`source` 就是這樣抓到的）、**CLI 旗標接線**（`test:cli` 跑文件上的每一個配方）、網頁與 CLI 不同步、**代理的輸出邊界**（非串流、`tool_calls` 不動、原生 `/completion` 形狀、乾淨回應逐位元組不變）、**最後還會跑 `test:repo`**：三軸檢查這份 repo 自己 |
+| `npm test` | 轉換選錯字、粵語／日文偵測過度或不足、**hook 壞掉（它壞掉是無聲的）**、外掛註冊欄位漏掉（`source` 就是這樣抓到的）、**CLI 旗標接線**（`test:cli` 跑文件上的每一個配方）、網頁與 CLI 不同步、**代理的輸出邊界**（非串流、`tool_calls` 不動、原生 `/completion` 形狀、乾淨回應逐位元組不變）、**repo 自己的腳本檔位元組規則**（`.ps1` 純 ASCII；`.cmd`／`.bat` 純 ASCII ＋ CRLF）、**最後還會跑 `test:repo`**：三軸檢查這份 repo 自己 |
 | `npm run audit` | 字表重新產生後又把 `峰 床 痴 秘 灶 粽` 之類的標準繁體字當成簡體 |
 | `npm run check` | 文件或程式碼裡混進簡體（刻意的示範要標 `simplified-example`） |
 | `npm run check:written` | 文件或程式碼裡混進粵語口語（刻意的示範列在 `cantonese-allow.json`） |
@@ -56,6 +56,18 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 > `npm test` 現在包含 `test:web`：它會從**產生出來的 `dist/tradzh.html`** 裡抽出字表與核心，
 > 跟 CLI 用同一組測試資料比對。所以順序是「先 `build:web`，再 `npm test`」；
 > 沒建置過會自動跳過（exit 0），不會誤報失敗。
+
+> **`npm test` 現在也看「位元組」，不只看「字」**（2026-09-19 補）：三軸檢查問的是「中文對不對」，
+> 但 `.ps1` 的問題是**檔案類型**——PowerShell 5.1 用 ANSI 讀它，非 ASCII 的內容會讓整支腳本壞掉。
+> 所以 `api-selftest` 現在會走一遍 repo（`node_modules` 與 `.git` 除外），檢查
+> **每個 `.ps1` 是純 ASCII**、**每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF**（讀原始位元組，不是讀文字——
+> 讀成文字就看不出差別了）。同一條規則也寫在 `SKILL.md` 的〈檔案類型陷阱〉，成因在 `references/encoding.md`。
+>
+> **它第一次跑就抓到真的違規**：`scripts/build-codepage.ps1` 的註解裡有 15 個非 ASCII 位元組
+> （五個常見繁體字），而**所有既有的檢查都只看中文字軸，所以沒有東西會發現**——
+> 而寫出那行的正是剛把這條規則寫進文件的 session。現在那行改成 Unicode 碼位（ASCII），
+> 並由 `scripts/codepage-selftest.mjs` 驗證那五個字真的不在 cp20936 裡。
+> 教訓很具體：**規則寫進文件不等於有人遵守**，機械檢查要對準「會壞掉的那個維度」（這裡是位元組與檔案類型）。
 
 **改了字表要重建**：`node scripts/build-s2t.js`（一次重建**三個**轉換表：簡→繁、繁→簡、繁體偏好；
 來源放 `%TEMP%\opencc-check`）或 `node scripts/build-jp.js`（日文軸）。重建後**重跑 `npm test`
@@ -204,6 +216,7 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
+| npm（待發布） | **`1.3.0` 已備好**（2026-09-19）：版號已 bump、`dist/tradzh.html` 已重建（頁尾印 `v1.3.0`）、`npm test`／`npm run audit`／`npm pack --dry-run` 全綠。`npm publish` **由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`）；發布後才補 tag `v1.3.0` 與 GitHub Release（body 取 §6 的 1.3.0 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
 
@@ -485,10 +498,62 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 （57 個，`VALID_CHINESE_TOO`）。若 OpenCC 之後新增了新字體，而它同時是合法中文，
 那個清單要手動補——這是刻意的，它是一份被審核過的名單，不是自動推導出來的。
 
+### 待辦卡（`handoff-discipline` 格式，未出貨）
+
+| 卡 | 內容 | 狀態 |
+|---|---|---|
+| `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
+| `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
+
+這張卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
+若之後要接 `handoff-discipline` 的檢查器，專案 wrapper 的 `index` 要指到 `PUBLISHING.md`：
+用預設的 `README.md` 會把卡片判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
+
+> 這裡只列**這個 repo 自己的**卡。不屬於這個套件的工作項（例如全域記憶 `~/.dsh/AGENTS.md` 的指標行）
+> 不要放進來——那會讓發版文件混進無關的工作項。**卡片要放在它所屬的工作區**，不是放在人剛好坐著的地方。
+
 **要發布新版本時**（GitHub 推送、`npm publish`、版號規則、動到資料表的額外步驟、
 發錯了怎麼補救）看 [`PUBLISHING.md`](PUBLISHING.md)——那份只給維護者，
 刻意不列入 npm 打包清單。
 ## 6. 發布說明（貼進 GitHub Release 用）
+
+### 1.3.0 — Windows 腳本檔類型的寫入守衛
+
+```markdown
+### 1.3.0 — Windows 腳本檔類型的寫入守衛
+
+**新增**
+- **設定卡的第四個開關：「Windows 腳本檔類型」**（`fileTypes`：`off`／`warn`／`block`，預設 `warn`）。
+  這不是中文軸——上面幾條看「內容裡的中文」，它看**寫入的檔案類型**。判準刻意很窄：
+  `.ps1`／`.psm1` 的內容含**任何非 ASCII** 就擋（真的會壞：寫入工具一律寫「UTF-8 無 BOM」，
+  而 Windows PowerShell 5.1 用 ANSI 讀 `.ps1`，實測錯誤是 `The string is missing the terminator`）；
+  `.cmd`／`.bat` 含非 ASCII 或**只有 LF 沒有 CRLF** 則只警告（實測仍能執行，只是換一台機器會亂碼、
+  `goto` 會跳錯標籤）。**只看寫入、不掃描既有檔案**（別人既有的 UTF-16 或帶 BOM 腳本不受影響）、
+  **fail-open**、純 ASCII 永不觸發；`block` 也只擋 `.ps1`，`.cmd` 永遠只警告。
+- `SKILL.md` 新增〈檔案類型陷阱（Windows）〉：規則的**單一來源**（兩列表 ＋ 三行位元組驗證 ＋
+  為什麼不是「寫完再轉」、為什麼不用 BOM）。`references/encoding.md` 補成因與實測：
+  同一支腳本五種編碼的對照表（**只有「UTF-8 無 BOM」會壞**，連 PowerShell ISE 預設的 UTF-16 都能跑），
+  以及 `.cmd` 的純 LF 為什麼讓 `goto` 與 `set /p` 出怪事。
+
+**修正**
+- `scripts/build-codepage.ps1` 的註解裡有 **15 個非 ASCII 位元組**（五個常見繁體字），
+  等於這支腳本自己在違反它要示範的規則。改成 Unicode 碼位（純 ASCII），
+  並由 `test:codepage` 驗證那五個字真的不在 cp20936 裡。
+
+**測試**
+- `test:api` 61 → 66 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
+  讀**原始位元組**確認每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，
+  並先證明兩個偵測器真的會紅（讀成文字就看不出差別，所以這條一定要在位元組層）。
+  **它第一次跑就抓到真的違規**（就是上面那個 `build-codepage.ps1`）——不是合成的假案例。
+- `test:plugin` 的設定卡 24 → 27 項：`inspectFileType` 的 14 個行為案例（純 ASCII 放行、
+  `.md`／`read` 不觸發、`.cmd` 給 `block` 仍只警告、CRLF 放行而純 LF 觸發）、
+  真的 cordis waterfall 上的 3 個掛載案例，以及設定卡的第四組單選與**折疊標題行**跟著 `fileTypes` 變。
+
+**文件**
+- `README.md` 的寫入把關段落補上這兩條檔案類型規則與預設值；
+  `references/integration.md` 補 `fileTypes` 的設定、三個刻意設計，以及**兩個還沒做的缺口**
+  （`hooks.json` 那條路沒有這條規則、CLI 沒有 `--file-types`）。
+```
 
 ### 1.2.0 — 本機 LLM 的輸出把關、執行時編碼風險、出貨守門
 

@@ -312,6 +312,70 @@ console.log('terminology: the settled names are pinned, because they regressed t
     scanned.length >= 25, scanned.length + ' files');
 }
 
+// ---------------------------------------------------------------------------
+// The repo's own script files obey the file-type rules SKILL.md states.
+//
+// This is the rule that was broken BY the repo itself: scripts/build-codepage.ps1 once carried
+// 15 non-ASCII bytes in a comment - written by an agent that had just documented the rule - and
+// nothing caught it, because the existing checks all looked at Chinese glyph axes and none of
+// them looked at the FILE TYPE. Bytes, not glyphs: `.ps1` pure ASCII; `.cmd`/`.bat` pure ASCII
+// with CRLF.
+// ---------------------------------------------------------------------------
+{
+  const SKIP = new Set(['node_modules', '.git']);
+  const rel = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP.has(entry.name)) continue;
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(abs);
+      else rel.push(path.relative(ROOT, abs));
+    }
+  })(ROOT);
+
+  // Both predicates take the RAW BYTES: a text read would hide the difference between a
+  // UTF-8 byte sequence and the ANSI bytes that make PowerShell 5.1 fail (references/encoding.md).
+  const nonAsciiBytes = (buf) => {
+    let n = 0;
+    for (const byte of buf) if (byte > 0x7f) n++;
+    return n;
+  };
+  const loneLf = (buf) => {
+    let lf = 0;
+    let crlf = 0;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i] !== 10) continue;
+      lf++;
+      if (i > 0 && buf[i - 1] === 13) crlf++;
+    }
+    return lf - crlf;
+  };
+
+  // Prove both can fail before trusting them: a detector that has never gone red proves nothing.
+  ok('the non-ASCII byte detector really detects',
+    nonAsciiBytes(Buffer.from('# \u4e2d\u6587')) === 6 &&
+    nonAsciiBytes(Buffer.from('# pure ASCII')) === 0,
+    String(nonAsciiBytes(Buffer.from('# \u4e2d\u6587'))));
+  ok('the lone-LF detector really detects',
+    loneLf(Buffer.from('echo a\necho b\necho c')) === 2 && loneLf(Buffer.from('echo a\r\necho b')) === 0,
+    String(loneLf(Buffer.from('echo a\necho b\necho c'))));
+
+  const ps1 = rel.filter((f) => /\.(ps1|psm1)$/i.test(f));
+  const batch = rel.filter((f) => /\.(cmd|bat)$/i.test(f));
+  const ps1Bad = ps1.filter((f) => nonAsciiBytes(readFileSync(path.join(ROOT, f))) > 0);
+  const batchBad = batch.filter((f) => {
+    const buf = readFileSync(path.join(ROOT, f));
+    return nonAsciiBytes(buf) > 0 || loneLf(buf) > 0;
+  });
+  ok('every .ps1 in the repo is pure ASCII',
+    ps1Bad.length === 0, ps1Bad.join(', '));
+  ok('every .cmd/.bat in the repo is pure ASCII with CRLF',
+    batchBad.length === 0, batchBad.join(', '));
+  // Neither list is empty here in practice, but an empty one must not read as a pass.
+  ok('the file-type scan really walked the repo (' + ps1.length + ' .ps1, ' + batch.length + ' .cmd/.bat)',
+    ps1.length >= 2 && rel.length >= 25, ps1.length + ' .ps1, ' + batch.length + ' batch, ' + rel.length + ' files');
+}
+
 console.log('');
 if (failed) {
   console.log('FAIL: ' + failed + ' of ' + checks + ' checks failed');

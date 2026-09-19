@@ -121,8 +121,14 @@ const guard = (ok, message) => {
 try {
   const plugin = asPlugin(await load(join(here, '..', 'index.mjs')))
   const defaults = plugin.resolveSection(undefined)
-  guard(JSON.stringify(defaults) === JSON.stringify({ enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true }),
+  guard(JSON.stringify(defaults) === JSON.stringify({ enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true, fileTypes: 'warn' }),
     'resolveSection defaults changed: ' + JSON.stringify(defaults))
+  // fileTypes is its own three-way switch and defaults to warn: the rule acts on other
+  // people's files, so blocking by default would look broken to someone who never asked.
+  guard(plugin.resolveSection({ fileTypes: 'block' }).fileTypes === 'block', 'fileTypes:"block" was not kept')
+  guard(plugin.resolveSection({ fileTypes: 'off' }).fileTypes === 'off', 'fileTypes:"off" was not kept')
+  guard(plugin.resolveSection({ fileTypes: 'nonsense' }).fileTypes === 'warn',
+    'an unknown fileTypes value did not fall back to warn')
   const off = plugin.resolveSection({ enabled: false, mode: 'warn', japanese: false })
   guard(off.enabled === false && off.mode === 'warn' && off.japanese === false && off.script === 'traditional',
     'resolveSection ignored an explicit override: ' + JSON.stringify(off))
@@ -169,6 +175,37 @@ try {
   guard(plugin.inspectWrite('write', { content: '这是简体。' }, { ...defaults, script: 'off' }) === undefined,  // check-ok
     'script:"off" refused Simplified content')
 
+  // Windows file-type traps, as their own entry point. The write tools always emit UTF-8
+  // without a BOM, so "a .ps1 with non-ASCII" IS the combination that fails to parse on
+  // PowerShell 5.1 - and it is the only combination this criterion can fire on.
+  const ps1Warn = plugin.inspectFileType('write', { file_path: 'x.ps1', content: '# 中文註解' }, defaults)
+  guard(Boolean(ps1Warn) && ps1Warn.severity === 'warn' && ps1Warn.reason.includes('file type'),
+    'a .ps1 with non-ASCII was not reported in the default (warn) mode: ' + JSON.stringify(ps1Warn))
+  const ps1Block = plugin.inspectFileType('write', { file_path: 'x.ps1', content: '# 中文註解' },
+    { ...defaults, fileTypes: 'block' })
+  guard(Boolean(ps1Block) && ps1Block.severity === 'block',
+    'fileTypes:"block" did not upgrade the .ps1 trap: ' + JSON.stringify(ps1Block))
+  guard(plugin.inspectFileType('write', { file_path: 'x.ps1', content: '# pure ASCII' }, defaults) === undefined,
+    'a pure-ASCII .ps1 was reported')
+  guard(plugin.inspectFileType('write', { file_path: 'x.psm1', content: '# 中文' }, defaults) !== undefined,
+    'a .psm1 with non-ASCII was not reported')
+  guard(plugin.inspectFileType('write', { file_path: 'x.md', content: '# 中文' }, defaults) === undefined,
+    'a non-script file type was reported')
+  guard(plugin.inspectFileType('write', { file_path: 'x.cmd', content: 'echo 中文' },
+    { ...defaults, fileTypes: 'block' }).severity === 'warn',
+    'a batch file with non-ASCII was escalated to block (it still runs, so it must stay a warn)')
+  guard(plugin.inspectFileType('write', { file_path: 'x.cmd', content: 'echo a\necho b' }, defaults) !== undefined,
+    'a batch file with LF-only endings was not reported')
+  guard(plugin.inspectFileType('write', { file_path: 'x.cmd', content: 'echo a\r\necho b' }, defaults) === undefined,
+    'a batch file with CRLF endings was reported')
+  guard(plugin.inspectFileType('write', { file_path: 'x.ps1', content: '# 中文' },
+    { ...defaults, fileTypes: 'off' }) === undefined,
+    'fileTypes:"off" still checked the file type')
+  guard(plugin.inspectFileType('read', { file_path: 'x.ps1', content: '# 中文' }, defaults) === undefined,
+    'a tool outside write|edit was file-type guarded')
+  guard(plugin.inspectFileType('write', { content: '# 中文' }, defaults) === undefined,
+    'a call with no path was file-type guarded')
+
   // The mounted listener, through real cordis: exactly how the harness calls it.
   // (cordis was loaded inside the first try block, so it is re-loaded here rather
   // than leaking a block-scoped binding.)
@@ -189,6 +226,23 @@ try {
     const passed = await ctx2.waterfall(null, 'tools/pre-execute',
       { name: 'write', arguments: { file_path: 'a.md', content: '我聽見了。' } }, allow)
     guard(passed && passed.kind === 'allow', 'the mounted listener did not allow a clean write')
+
+    // The file-type trap through the same listener: the default is warn, so the write lands
+    // (the model is told, the bytes still go through) - that is the whole point of the switch.
+    const ps1Warned = await ctx2.waterfall(null, 'tools/pre-execute',
+      { name: 'write', arguments: { file_path: 'x.ps1', content: '# 中文註解' } }, allow)
+    guard(ps1Warned && ps1Warned.kind === 'allow',
+      'the mounted listener blocked a .ps1 in the default warn mode: ' + JSON.stringify(ps1Warned))
+
+    // ...and with the switch turned to block, the same call is refused.
+    const ctx3 = new Context2()
+    ctx3.plugin(asPlugin(await load(join(modulesRoot, '@deepseek-ai', 'dsh-skill', 'lib', 'index.js'))))
+    ctx3.plugin(plugin, { fileTypes: 'block' })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const ps1Denied = await ctx3.waterfall(null, 'tools/pre-execute',
+      { name: 'write', arguments: { file_path: 'x.ps1', content: '# 中文註解' } }, allow)
+    guard(ps1Denied && ps1Denied.kind === 'deny' && String(ps1Denied.reason).includes('file type'),
+      'the mounted listener did not deny a .ps1 with fileTypes:"block": ' + JSON.stringify(ps1Denied))
   }
 
   // Settings wiring: the row config is the base layer, the card writes the user
@@ -428,18 +482,24 @@ try {
   card(titleOf(collapsed) === zh.title,
     'the collapsed header must show the title, got ' + JSON.stringify(titleOf(collapsed)))
   card(descriptionOf(collapsed) === zh.descPrefix + zh.partScriptTraditional +
-    zh.descSeparator + zh.partRegister + zh.descSeparator + zh.partJapanese + zh.descSuffix,
+    zh.descSeparator + zh.partRegister + zh.descSeparator + zh.partJapanese +
+    zh.descSeparator + zh.partFileTypes + zh.descSuffix,
     'the collapsed header must describe the default checks, got ' + JSON.stringify(descriptionOf(collapsed)))
   const asSimplified = descriptionOf(renderCard(false, { script: 'simplified' }))
   card(asSimplified.includes(zh.partScriptSimplified) && !asSimplified.includes(zh.partScriptTraditional),
     'switching the script axis to Simplified must change the header line, got ' + JSON.stringify(asSimplified))
   const asScriptOff = descriptionOf(renderCard(false, { script: 'off' }))
   card(asScriptOff === zh.descPrefix + zh.partRegister + zh.descSeparator + zh.partJapanese +
-    zh.descScriptSkipped + zh.descSuffix,
+    zh.descSeparator + zh.partFileTypes + zh.descScriptSkipped + zh.descSuffix,
     'the header line must drop the script axis and say so, got ' + JSON.stringify(asScriptOff))
-  const asNothing = descriptionOf(renderCard(false, { script: 'off', register: false, japanese: false }))
+  // "Nothing is being checked" needs every axis off, the file-type check included:
+  // the card must not claim to check nothing while the file-type check is still on.
+  const asNothing = descriptionOf(renderCard(false, { script: 'off', register: false, japanese: false, fileTypes: 'off' }))
   card(asNothing === zh.descNone,
     'the header line must say nothing is being checked, got ' + JSON.stringify(asNothing))
+  const asGlyphsOff = descriptionOf(renderCard(false, { script: 'off', register: false, japanese: false }))
+  card(asGlyphsOff === zh.descPrefix + zh.partFileTypes + zh.descScriptSkipped + zh.descSuffix,
+    'the file-type check must still show on the header line when the glyph axes are off, got ' + JSON.stringify(asGlyphsOff))
   const asDisabled = descriptionOf(renderCard(false, { enabled: false }))
   card(asDisabled === zh.enabledOff,
     'the header line must say the guard is off, got ' + JSON.stringify(asDisabled))
@@ -450,7 +510,8 @@ try {
   const asEnglish = descriptionOf(renderCard(false))
   localeName = 'zh'
   card(asEnglish === en.descPrefix + en.partScriptTraditional + en.descSeparator +
-    en.partRegister + en.descSeparator + en.partJapanese + en.descSuffix,
+    en.partRegister + en.descSeparator + en.partJapanese + en.descSeparator +
+    en.partFileTypes + en.descSuffix,
     'the English header line is wrong, got ' + JSON.stringify(asEnglish))
   card(Object.keys(zh).every((key) => en[key] !== undefined),
     'the English dictionary is missing: ' + Object.keys(zh).filter((key) => en[key] === undefined).join(', '))
@@ -463,6 +524,14 @@ try {
   card(tree.includes('chinese-script-policy-script') && tree.includes('"scriptSimplified"'),
     'the expanded card did not render the three-way script choice')
   card(tree.includes('"register"') && tree.includes('"japanese"'), 'the expanded card did not render the other axes')
+  // The file-type switch must be reachable in the UI, not only honoured by the guard:
+  // a setting nobody can turn off (or on) is not a setting.
+  card(tree.includes('chinese-script-policy-fileTypes') &&
+    tree.includes('"fileTypesOff"') && tree.includes('"fileTypesWarn"') && tree.includes('"fileTypesBlock"'),
+    'the expanded card did not render the three-way file-type choice')
+  card(descriptionOf(renderCard(false, { fileTypes: 'block' })).includes(zh.partFileTypes) &&
+    descriptionOf(renderCard(false, { fileTypes: 'off' })).includes(zh.partFileTypes) === false,
+    'the file-type part on the header line must follow the fileTypes setting')
   card(tree.includes('"name":"chinese-script-policy-mode"') || tree.includes('"chinese-script-policy-mode"'),
     'the mode radios are not grouped under the namespace')
 } catch (e) {
