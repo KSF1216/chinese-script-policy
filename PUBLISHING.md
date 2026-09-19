@@ -203,7 +203,7 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 | 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
-| npm | `1.0.0`（已移除）＋ `1.1.0`（2026-09-17 23:27Z，52 檔）＋ `1.1.1`（2026-09-17 23:33Z，52 檔，shasum `6e5e56dd…`）＋ **`1.2.0`（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）** |
+| npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
 
@@ -523,6 +523,13 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 - `test:codepage`（41 項）釘住 codepage 涵蓋表的量測數字；`test:proxy`（30 項）用真的
   upstream ＋ 真的監聽中的代理測邊界；`test:api` 58 → 61 項；`--console-hazard` 的 8 個
   CLI 案例進 `selftest-cases.json`。
+
+**移除**
+- `chinese-script-policy@1.1.0` 與 `1.1.1` 自 npm 移除（都在發布後 72 小時內，依官方政策可
+  unpublish）；`1.0.0` 更早已移除。**三個版號永久保留給已下載過的安裝來源，不會再被使用。**
+  移除的理由是「registry 上只留最新版」，**不是外洩**：兩份舊 tarball 都經掃描確認不含任何
+  本機資訊（各 52 檔、沒有 `.ship-deny.txt`、私人名稱命中 0）。
+  registry 上現在只有 `1.2.0`（`dist-tags.latest` 不變）。
 
 **資料**
 - `scripts/codepage-repertoire.json`（182 KB）由 `npm run build:codepage` 以 .NET 產生
