@@ -13,6 +13,15 @@
 # `text=auto` still lets git decide what is text, so a future binary file is untouched.
 * text=auto eol=lf
 
+# The exception, and it is a real one: batch files must be CRLF in the WORKING TREE.
+# cmd.exe mis-parses bare LF (`goto` jumps to the wrong label, `set /p` reads an empty
+# value), which is a rule this package states in SKILL.md and checks byte-wise in
+# scripts/api-selftest.mjs. Without this line a committed .cmd would be checked out as
+# LF - so the check would fail on a fresh clone of a repo whose author did nothing wrong.
+# Git still stores LF internally (like every other text file here); only the checkout differs.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
 # Belt and braces for the one generated file that is diffed by bytes: never rewrite it,
 # whichever attribute rule would apply.
 dist/tradzh.html -text
