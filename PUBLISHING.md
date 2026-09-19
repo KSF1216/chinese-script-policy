@@ -69,6 +69,12 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 > 並由 `scripts/codepage-selftest.mjs` 驗證那五個字真的不在 cp20936 裡。
 > 教訓很具體：**規則寫進文件不等於有人遵守**，機械檢查要對準「會壞掉的那個維度」（這裡是位元組與檔案類型）。
 
+> **驗收要在「乾淨的 clone」上跑一次**（2026-09-19 實測）：`git clone` 到暫存目錄再跑 `npm test`，
+> 能抓到「只有作者本機才會過」的問題（`.gitattributes` 的換行、忘了 commit 的產物）。
+> **⚠️ 但目錄名要保留 `chinese-script-policy`**：`.tradzhignore` 為了不誤放行使用者的 `dev/`，
+> 用的是 `**/chinese-script-policy/dev/**`（帶專案名的路徑），所以 clone 成 `csp-clone` 之類的名字時
+> `test:repo` 會回報 `dev/gaps.mjs` 有 129 個簡體字——那是**路徑名稱**造成的，不是內容壞了。
+
 **改了字表要重建**：`node scripts/build-s2t.js`（一次重建**三個**轉換表：簡→繁、繁→簡、繁體偏好；
 來源放 `%TEMP%\opencc-check`）或 `node scripts/build-jp.js`（日文軸）。重建後**重跑 `npm test`
 與 `npm run audit`**。重建**不會蓋掉本專案自己補的條目**（專案檔案優先，而且會列進檔案的
