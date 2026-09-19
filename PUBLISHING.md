@@ -203,7 +203,8 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 | 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
-| npm | `1.0.0`（2026-09-17 13:43Z，43 檔）＋ `1.1.0`（2026-09-17 23:27Z，52 檔，shasum `1e2f0e9b…`）＋ **`1.1.1`（2026-09-17 23:33Z，`latest`，52 檔，shasum `6e5e56dd…`）** ＋ **`1.2.0` 準備中**（本機已 bump、§1 七項全過、`npm pack` 58 檔；等使用者在自己的終端機跑 `npm publish`） |
+| npm | `1.0.0`（已移除）＋ `1.1.0`（2026-09-17 23:27Z，52 檔）＋ `1.1.1`（2026-09-17 23:33Z，52 檔，shasum `6e5e56dd…`）＋ **`1.2.0`（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）** |
+| git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
@@ -378,6 +379,15 @@ GitHub Changelog [2026-07-08](https://github.blog/changelog/2026-07-08-npm-insta
 `GET /chinese-script-policy` 仍回 **404**（因為發布前反覆查過，那個 404 被快取住），
 但 `GET /chinese-script-policy/latest` 立刻回 **200**。**驗收請用 `/latest`**，
 或等快取過期；不要因為 packument 還 404 就重發（會撞 `EPUBLISHCONFLICT`）。
+
+**⭐ 1.2.0 的另一個發現：現在的 publish 是非同步的**（2026-09-19 實測）。按完安全金鑰之後
+`PUT` 回的是 **202（受理、處理中）**，npm 自己印
+`Your package is being processed and may take a few minutes to become available.`，
+日誌結尾是 `verbose exit 0` ＋ `info ok`。**`dist-tags.latest` 約一分鐘後才從舊版跳到新版**：
+這段時間 `npm view <pkg> version` 還是舊版、`npm view <pkg>@<新版>` 回 **E404**——
+**那不是失敗，是還沒處理完**（我這次就在一分鐘內查而誤判成「發布沒成功」）。
+判斷方式看日誌：`/-/v1/done` 出現 **200**（＝你按了金鑰）＋ 最後 `PUT 202` ＋ `info ok`
+＝ 成功，去等、不要重跑。
 
 **⭐ 發布後的驗收清單（四項都做才算驗完）**：
 
