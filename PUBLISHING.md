@@ -195,15 +195,16 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 3. Pages 建好之後**根目錄會先 404 幾十秒**（部署還在滾），`/dist/tradzh.html` 先通、`/` 後通；
    不要看到 404 就以為設定錯了。
 
-## 3. 目前狀態（2026-09-18）
+## 3. 目前狀態（2026-09-19）
 
 | 項目 | 狀態 |
 |---|---|
 | GitHub repo | **已發布** —— `https://github.com/KSF1216/chinese-script-policy`（public、branch `main`） |
-| 歷史 | **2026-09-18 整個 repo 刪掉重建，壓成單一 commit `ae401bf`**（tree 與刪除前完全相同 `0e4f5e25…`）；舊 sha 的 raw 已確認 **404** |
-| About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages） |
+| 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
+| About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | `1.0.0`（2026-09-17 13:43Z，43 檔）＋ `1.1.0`（2026-09-17 23:27Z，52 檔，shasum `1e2f0e9b…`）＋ **`1.1.1`（2026-09-17 23:33Z，`latest`，52 檔，shasum `6e5e56dd…`）** |
+| ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
 
