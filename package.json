@@ -1,0 +1,107 @@
+{
+  "name": "chinese-script-policy",
+  "version": "1.1.1",
+  "description": "Harness-neutral Traditional Chinese enforcer and offline converter: agent skill, DSH bundle or CLI. Checks one script axis one way at a time plus Cantonese and Japanese-only kanji/word filters. Converts both directions; optional wording preference.",
+  "license": "MIT",
+  "author": "Matthew Kwan <319604871+KSF1216@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KSF1216/chinese-script-policy.git"
+  },
+  "homepage": "https://github.com/KSF1216/chinese-script-policy#readme",
+  "bugs": {
+    "url": "https://github.com/KSF1216/chinese-script-policy/issues"
+  },
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./core": {
+      "import": "./scripts/core.mjs",
+      "require": "./scripts/core.js",
+      "default": "./scripts/core.js"
+    },
+    "./lib": "./scripts/lib.js",
+    "./tables/*": "./scripts/*.json",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "tradzh": "scripts/tradzh.js",
+    "chinese-script": "scripts/tradzh.js"
+  },
+  "files": [
+    "index.mjs",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "SKILL.md",
+    ".tradzhignore",
+    "hooks.json",
+    "scripts",
+    "references",
+    "examples",
+    "third_party",
+    "dist/tradzh.html",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "test": "node scripts/selftest.js && node scripts/codepage-selftest.mjs && node scripts/cli-selftest.mjs && node scripts/hook-selftest.mjs && node scripts/plugin-selftest.mjs && node scripts/api-selftest.mjs && node scripts/proxy-selftest.mjs && node scripts/web-selftest.mjs && npm run test:repo",
+    "test:conversion": "node scripts/selftest.js",
+    "test:codepage": "node scripts/codepage-selftest.mjs",
+    "test:cli": "node scripts/cli-selftest.mjs",
+    "test:hook": "node scripts/hook-selftest.mjs",
+    "test:plugin": "node scripts/plugin-selftest.mjs",
+    "test:api": "node scripts/api-selftest.mjs",
+    "test:proxy": "node scripts/proxy-selftest.mjs",
+    "test:repo": "node scripts/tradzh.js --dir . && node scripts/tradzh.js --written --dir . && node scripts/tradzh.js --japanese --dir .",
+    "audit": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit-glyph-list.ps1",
+    "check": "node scripts/tradzh.js --dir .",
+    "check:written": "node scripts/tradzh.js --written --dir .",
+    "check:japanese": "node scripts/tradzh.js --japanese --dir .",
+    "build:web": "node scripts/build-web.js",
+    "build:jp": "node scripts/build-jp.js",
+    "build:codepage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-codepage.ps1",
+    "test:web": "node scripts/web-selftest.mjs",
+    "stats": "node scripts/stats.js",
+    "llm-guard-proxy": "node examples/llm-proxy/llm-guard-proxy.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "skill",
+    "agent-skills",
+    "traditional-chinese",
+    "simplified-chinese",
+    "chinese",
+    "cantonese",
+    "japanese",
+    "kanji",
+    "shinjitai",
+    "kokuji",
+    "opencc",
+    "cli",
+    "llama.cpp",
+    "llamacpp",
+    "openai-compatible",
+    "proxy",
+    "sillytavern"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,483 @@
+// Regression test for the DSH plugin entry, run against the REAL skill registry
+// (@deepseek-ai/dsh-skill) instead of a hand-written fake context.
+//
+// Why this exists: a fake context only checks the shape we assume. The real
+// registry caught a bug a fake never would - a runtime skill without a `source`
+// string still appears in the catalog, then throws when the model actually loads
+// it ('loaded skill "..." source must be a string'). So this mounts the real
+// registry, mounts our plugin, and then both lists and loads the skill.
+//
+// Usage: node scripts/plugin-selftest.mjs [path-to-node_modules-with-deepseek]
+// Exits 0 when the registry serves the skill, or when DSH is not installed here
+// (nothing to test). Exits 1 on a real contract failure.
+import { createRequire } from 'node:module'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
+
+function findModulesRoot() {
+  const explicit = process.argv[2]
+  if (explicit) return explicit
+
+  // Plain resolution first: works when this package sits inside a profile that
+  // can already see the harness packages.
+  try {
+    return dirname(dirname(require.resolve('@deepseek-ai/dsh-skill/package.json')))
+  } catch { /* keep probing */ }
+
+  // npx cache: where `npx @deepseek-ai/dsh` unpacks itself.
+  const npxRoot = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'npm-cache', '_npx')
+  if (existsSync(npxRoot)) {
+    for (const entry of readdirSync(npxRoot)) {
+      const candidate = join(npxRoot, entry, 'node_modules')
+      if (existsSync(join(candidate, '@deepseek-ai', 'dsh-skill', 'package.json'))) return candidate
+    }
+  }
+  return null
+}
+
+const modulesRoot = findModulesRoot()
+if (!modulesRoot) {
+  console.log('SKIP: @deepseek-ai/dsh-skill not found (no DSH install to test against)')
+  console.log('      pass the path explicitly: node scripts/plugin-selftest.mjs <node_modules>')
+  process.exit(0)
+}
+
+const load = (p) => import(pathToFileURL(p).href)
+const asPlugin = (mod) => {
+  if (typeof mod === 'function') return mod
+  if (typeof mod.apply === 'function') return mod
+  if (mod.default && (typeof mod.default === 'function' || typeof mod.default.apply === 'function')) return mod.default
+  throw new Error('not a cordis plugin: ' + Object.keys(mod).join(','))
+}
+
+const problems = []
+try {
+  const cordis = await load(join(modulesRoot, '@deepseek-ai', 'cordis', 'lib', 'index.js'))
+  const registry = asPlugin(await load(join(modulesRoot, '@deepseek-ai', 'dsh-skill', 'lib', 'index.js')))
+  const plugin = asPlugin(await load(join(here, '..', 'index.mjs')))
+  const Context = cordis.Context ?? cordis.default?.Context ?? cordis.default
+
+  console.log('registry modules :', modulesRoot)
+  console.log('plugin name      :', plugin.name, '| inject:', JSON.stringify(plugin.inject))
+
+  const ctx = new Context()
+  ctx.plugin(registry)
+  ctx.plugin(plugin)
+  await new Promise((resolve) => setTimeout(resolve, 50))
+
+  const catalog = await ctx.skills.list({ cwd: process.cwd() })
+  console.log('catalog          :', catalog.length, 'entr(y/ies)')
+  for (const s of catalog) console.log('  -', s.name, '| provider:', s.provider, '| source:', s.source)
+
+  const found = catalog.find((s) => s.name === 'chinese-script-policy')
+  if (!found) problems.push('the skill is not in the catalog')
+  if (found && found.provider !== 'runtime') problems.push('expected provider "runtime", got "' + found.provider + '"')
+
+  // The part that matters: loading it must not throw.
+  let loaded = null
+  try {
+    loaded = await ctx.skills.get('chinese-script-policy', { cwd: process.cwd() })
+  } catch (e) {
+    problems.push('get() threw: ' + e.message)
+  }
+  if (!loaded) problems.push('get() returned nothing')
+  else {
+    console.log('loaded body      :', loaded.content.length, 'chars')
+    console.log('resourceBase     :', JSON.stringify(loaded.resourceBase))
+    if (!loaded.content.includes('繁體中文')) problems.push('loaded body does not look like this skill')
+    if (loaded.content.includes('---\nname:')) problems.push('frontmatter was not stripped')
+    if (loaded.resourceBase?.kind !== 'directory') problems.push('resourceBase is not a directory hint')
+  }
+} catch (e) {
+  problems.push('harness error: ' + e.message)
+}
+
+// ---------------------------------------------------------------------------
+// The write guard. The plugin owns it now: a DSH profile needs no
+// hook bridge row, so this plugin is the only thing
+// standing between the model and a bad write.
+//
+// Tested in two layers, because they fail differently:
+//   - the pure decision (resolveSection / inspectWrite), driven directly;
+//   - the mounted listener, driven through the REAL cordis waterfall, which is
+//     how the harness calls it (ctx.waterfall(carrier, 'tools/pre-execute', …)).
+// Plus one fake context for the settings wiring, which needs no harness.
+// ---------------------------------------------------------------------------
+let guardChecks = 0
+let guardProblems = 0
+const guard = (ok, message) => {
+  guardChecks++
+  if (!ok) {
+    guardProblems++
+    problems.push(message)
+  }
+}
+
+try {
+  const plugin = asPlugin(await load(join(here, '..', 'index.mjs')))
+  const defaults = plugin.resolveSection(undefined)
+  guard(JSON.stringify(defaults) === JSON.stringify({ enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true }),
+    'resolveSection defaults changed: ' + JSON.stringify(defaults))
+  const off = plugin.resolveSection({ enabled: false, mode: 'warn', japanese: false })
+  guard(off.enabled === false && off.mode === 'warn' && off.japanese === false && off.script === 'traditional',
+    'resolveSection ignored an explicit override: ' + JSON.stringify(off))
+
+  // The script axis is a three-way choice, and a section stored by an older build
+  // spelled it as a boolean: true meant Traditional, false meant "do not check".
+  guard(plugin.resolveSection({ script: 'simplified' }).script === 'simplified',
+    'script:"simplified" was not kept')
+  guard(plugin.resolveSection({ script: false }).script === 'off',
+    'the legacy boolean false no longer maps to script:"off"')
+  guard(plugin.resolveSection({ script: true }).script === 'traditional',
+    'the legacy boolean true no longer maps to script:"traditional"')
+  guard(plugin.resolveSection({ script: 'nonsense' }).script === 'traditional',
+    'an unknown script value did not fall back to traditional')
+
+  const simp = plugin.inspectWrite('write', { file_path: 'a.md', content: '我听见了。' }, defaults)  // check-ok
+  guard(typeof simp === 'string' && simp.includes('BLOCKED'), 'a Simplified write was not refused')
+  guard(plugin.inspectWrite('write', { file_path: 'a.md', content: '我聽見了。' }, defaults) === undefined,
+    'a clean Traditional write was refused')
+  guard(plugin.inspectWrite('read', { file_path: 'a.md', content: '我听见了。' }, defaults) === undefined,  // check-ok
+    'a tool outside write|edit was guarded')
+  guard(plugin.inspectWrite('write', { content: '我听见了。' }, { ...defaults, enabled: false }) === undefined,  // check-ok
+    'enabled:false still refused a write')
+  guard(plugin.inspectWrite('write', { content: '予定' }, { ...defaults, japanese: false }) === undefined,  // check-ok
+    'the japanese axis was refused even though it was switched off')
+  guard(plugin.inspectWrite('write', { content: '予定' }, defaults) !== undefined,  // check-ok
+    'a Japanese-only word was not caught by the japanese axis')
+  guard(plugin.inspectWrite('write', { file_path: join(here, 'japanese-only.json'), content: '我听见了。' }, defaults) === undefined,  // check-ok
+    '.tradzhignore was not honoured')
+
+  // script:"simplified" is the mirror image: Traditional-only glyphs are the fault,
+  // Simplified content is fine, and the advice must say so.
+  const mirrored = { ...defaults, script: 'simplified' }
+  const trads = plugin.inspectWrite('write', { file_path: 'a.md', content: '這是繁體說明。' }, mirrored)
+  guard(typeof trads === 'string' && trads.includes('BLOCKED') && trads.includes('Simplified'),
+    'script:"simplified" did not refuse Traditional-only glyphs with Simplified advice: ' + String(trads).split('\n')[0])
+  guard(plugin.inspectWrite('write', { file_path: 'a.md', content: '这是简体说明。' }, mirrored) === undefined,  // check-ok
+    'script:"simplified" refused content that is already Simplified')
+  // The Japanese arrow has to point at the stored script, not always at Traditional.
+  const jpArrow = plugin.inspectWrite('write', { content: '予定' }, mirrored)  // check-ok
+  guard(typeof jpArrow === 'string', 'a Japanese-only word was not caught with script:"simplified"')
+  guard(plugin.inspectWrite('write', { content: '那个软件' }, { ...defaults, script: 'off' }) === undefined,  // check-ok
+    'script:"off" still checked the script axis')
+  guard(plugin.inspectWrite('write', { content: '这是简体。' }, { ...defaults, script: 'off' }) === undefined,  // check-ok
+    'script:"off" refused Simplified content')
+
+  // The mounted listener, through real cordis: exactly how the harness calls it.
+  // (cordis was loaded inside the first try block, so it is re-loaded here rather
+  // than leaking a block-scoped binding.)
+  const cordisModule = await load(join(modulesRoot, '@deepseek-ai', 'cordis', 'lib', 'index.js'))
+  const Context2 = cordisModule.Context ?? cordisModule.default?.Context ?? cordisModule.default
+  const ctx2 = new Context2()
+  ctx2.plugin(asPlugin(await load(join(modulesRoot, '@deepseek-ai', 'dsh-skill', 'lib', 'index.js'))))
+  ctx2.plugin(plugin)
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  if (typeof ctx2.waterfall !== 'function') {
+    console.log('guard waterfall : not available on this cordis build (listener test skipped)')
+  } else {
+    const allow = () => Promise.resolve({ kind: 'allow' })
+    const denied = await ctx2.waterfall(null, 'tools/pre-execute',
+      { name: 'write', arguments: { file_path: 'a.md', content: '我听见了。' } }, allow)  // check-ok
+    guard(denied && denied.kind === 'deny' && String(denied.reason).includes('BLOCKED'),
+      'the mounted listener did not deny a Simplified write: ' + JSON.stringify(denied))
+    const passed = await ctx2.waterfall(null, 'tools/pre-execute',
+      { name: 'write', arguments: { file_path: 'a.md', content: '我聽見了。' } }, allow)
+    guard(passed && passed.kind === 'allow', 'the mounted listener did not allow a clean write')
+  }
+
+  // Settings wiring: the row config is the base layer, the card writes the user
+  // layer, and the listener must read whichever is current.
+  const captured = {}
+  const fakeCtx = {
+    skills: { register: () => () => {} },
+    effect: (fn) => { fn(); return () => {} },
+    inject: (names, cb) => cb({ settings: { installSection: (...args) => { captured.section = args } } }),
+    on: (evt, fn) => { captured.listener = fn },
+    logger: { warn: () => {} }
+  }
+  plugin.apply(fakeCtx, { mode: 'block' })
+  guard(Array.isArray(captured.section) && captured.section[1] === plugin.SETTINGS_NAMESPACE,
+    'the settings section was not installed under the expected namespace')
+  guard(typeof captured.listener === 'function', 'no tools/pre-execute listener was registered')
+  if (typeof captured.listener === 'function') {
+    let nextCalls = 0
+    const next = () => { nextCalls++; return Promise.resolve({ kind: 'allow' }) }
+    const first = await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
+    guard(first && first.kind === 'deny' && nextCalls === 0, 'the listener did not deny before next()')
+    // The settings card flips the switches: warn mode must let the write through.
+    captured.section[4].setSource(() => plugin.resolveSection({ mode: 'warn' }))
+    const warned = await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
+    guard(warned && warned.kind === 'allow' && nextCalls === 1, 'warn mode still denied the write')
+    captured.section[4].setSource(() => plugin.resolveSection({ enabled: false }))
+    await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
+    guard(nextCalls === 2, 'enabled:false did not let the write through')
+  }
+} catch (e) {
+  problems.push('guard error: ' + e.message)
+}
+
+// ---------------------------------------------------------------------------
+// Settings. The GUI card exists only for a namespace the HOST describes: the tab
+// renders the intersection of "namespaces describe() serves" and "cards
+// registered into settings.plugin.item". A schema that breaks describe()
+// therefore removes the card silently - and takes every other card in the tab
+// with it. That is exactly what happened once: the hand-rolled resolver had no
+// toJSON(), so describe() threw "registration.schema.toJSON is not a function".
+// So: mount the real settings service and its file provider (into a temp
+// document, never the user's settings.yaml) and check the namespace is really
+// described.
+// ---------------------------------------------------------------------------
+let settingsChecks = 0
+let settingsProblems = 0
+const setting = (ok, message) => {
+  settingsChecks++
+  if (!ok) {
+    settingsProblems++
+    problems.push(message)
+  }
+}
+
+try {
+  const asWrapped = (mod, fallback) => (typeof mod.apply === 'function'
+    ? { name: mod.name ?? fallback, inject: mod.inject, apply: mod.apply }
+    : mod.default)
+  const cordis3 = await load(join(modulesRoot, '@deepseek-ai', 'cordis', 'lib', 'index.js'))
+  const Context3 = cordis3.Context ?? cordis3.default?.Context ?? cordis3.default
+  const pluginMod = asPlugin(await load(join(here, '..', 'index.mjs')))
+
+  const ctx3 = new Context3()
+  ctx3.plugin(asWrapped(await load(join(modulesRoot, '@deepseek-ai', 'dsh-settings', 'lib', 'index.js')), 'settings'))
+  ctx3.plugin(asWrapped(await load(join(modulesRoot, '@deepseek-ai', 'dsh-settings-file', 'lib', 'index.js')), 'settings-file'),
+    { path: join(tmpdir(), 'chinese-script-policy-selftest-settings.yaml') })
+  // Our plugin injects 'skills'; a stub keeps this test off the skill registry.
+  ctx3.reflect.provide('skills', { register: () => () => {} })
+  await new Promise((r) => setTimeout(r, 80))
+  const service = ctx3.get('settings')
+  setting(service !== undefined, 'the settings service did not come up in the test harness')
+  setting(typeof pluginMod.resolveSection.toJSON === 'function',
+    'the settings resolver has no toJSON(), which is what makes describe() throw')
+
+  ctx3.plugin(pluginMod, { enabled: true })
+  await new Promise((r) => setTimeout(r, 250))
+
+  if (service) {
+    let described = null
+    try {
+      described = service.describe()
+    } catch (e) {
+      setting(false, 'describe() threw: ' + String(e.message).split('\n')[0])
+    }
+    if (described) {
+      setting(described.some((d) => d.ns === pluginMod.SETTINGS_NAMESPACE),
+        'our namespace is not in describe(): ' + JSON.stringify(described.map((d) => d.ns)))
+    }
+    try {
+      service.describe({ redactSecrets: true })
+    } catch (e) {
+      setting(false, 'describe({redactSecrets:true}) threw: ' + String(e.message).split('\n')[0])
+    }
+    const value = service.get(pluginMod.SETTINGS_NAMESPACE)
+    setting(Boolean(value) && value.enabled === true && value.mode === 'block',
+      'the described section did not resolve to the row config: ' + JSON.stringify(value))
+  }
+} catch (e) {
+  problems.push('settings error: ' + e.message)
+}
+
+// ---------------------------------------------------------------------------
+// The browser half (lib/client.js): the settings card. Nothing else in this repo
+// loads it - the page does - so a syntax error, a wrong module id or a wrong slot
+// key would only show up as a card that never appears in the GUI (or, worse, as
+// every client plugin in the page failing to load). It registers itself through
+// window.__ModuleLoader__.load and hands back a factory, so this test plays the
+// shell's part: a stand-in window captures the registration, a stand-in React
+// renders the card once.
+// ---------------------------------------------------------------------------
+let cardChecks = 0
+let cardProblems = 0
+const card = (ok, message) => {
+  cardChecks++
+  if (!ok) {
+    cardProblems++
+    problems.push(message)
+  }
+}
+
+try {
+  const code = readFileSync(join(here, '..', 'lib', 'client.js'), 'utf8')
+  // The host concatenates every client half into ONE script, so this file must
+  // register itself. The dynamic-runner shape (a bare async function body ending
+  // in `return {...}`) has no wrapper there, and its top-level return is a
+  // SyntaxError that killed the whole bundle - for every plugin, not just ours.
+  card(code.includes('window.__ModuleLoader__.load('),
+    'the browser half must register itself through window.__ModuleLoader__.load')
+  card(!/^[ \t]*(?:import|export)[ \t{]/m.test(code), 'the browser half must not use ESM syntax')
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useState: (init) => [typeof init === 'function' ? init() : init, () => {}],
+    useEffect: () => {},
+    Fragment: 'fragment',
+  }
+  const loadedModules = []
+  new Function('window', 'console', code)(
+    { __ModuleLoader__: { load: (definition) => loadedModules.push(definition) } }, console)
+  card(loadedModules.length === 1, 'the browser half registered ' + loadedModules.length + ' module(s), want 1')
+  const definition = loadedModules[0]
+  card(Boolean(definition) && definition.id === 'chinese-script-policy',
+    'the module id must equal the loader row name, got ' + JSON.stringify(definition && definition.id))
+  const browserPlugin = definition ? definition.factory((id) => (id === 'react' ? React : {})) : null
+  card(browserPlugin && typeof browserPlugin.apply === 'function', 'the factory did not return a plugin')
+  card(Array.isArray(browserPlugin && browserPlugin.inject) && browserPlugin.inject.includes('slots') &&
+    browserPlugin.inject.includes('settingsScope'),
+    'the browser half must inject slots and settingsScope: ' + JSON.stringify(browserPlugin && browserPlugin.inject))
+
+  let registered = null
+  // The card's header line is composed from the REAL dictionary (captured here from
+  // ctx.locale.register) and the REAL stored settings, so the checks below exercise
+  // the shipped strings rather than a stand-in.
+  // ctx.locale.register() receives the WHOLE locale map ({ zh: {...}, en: {...} }), and
+  // bind() resolves a key through the CURRENT locale - it is not one flat dictionary. The
+  // first version of this stand-in got that wrong, so every lookup fell back to the key
+  // name and these checks compared key names instead of the shipped strings.
+  let dictionaries = {}
+  let localeName = 'zh'
+  const settingsSnapshot = { value: {}, writable: true }
+  const clientCtx = {
+    locale: {
+      bind: () => (key) => {
+        const table = dictionaries[localeName] || dictionaries.zh || {}
+        return table[key] !== undefined ? table[key] : key
+      },
+      register: (ns, registered) => { dictionaries = registered; return () => {} },
+    },
+    effect: (fn) => { fn(); return () => {} },
+    settingsScope: {
+      bind: () => ({
+        getSnapshot: () => settingsSnapshot,
+        set: async () => {},
+        unset: async () => {},
+      }),
+    },
+    slots: {
+      inject: (name, generator) => { for (const step of generator()) void step },
+      register: (options, component) => { registered = { options, component }; return () => {} },
+    },
+  }
+  browserPlugin.apply(clientCtx)
+  card(registered !== null && registered.options.name === 'settings.plugin.item',
+    'the card did not register into settings.plugin.item')
+  card(registered !== null && registered.options.key === 'chinese-script-policy',
+    'the card key is not the settings namespace: ' + JSON.stringify(registered && registered.options))
+
+  // The card must behave like the shipped ones: an <li> whose header collapses the
+  // body. The open flag starts as `false`, so the fake React's useState is nudged
+  // for that one call to render the expanded state as well - the body only exists
+  // while open, and a test that never opens the card would miss the whole form.
+  const makeReact = (forceOpen) => ({
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useState: (init) => [
+      forceOpen && init === false ? true : (typeof init === 'function' ? init() : init),
+      () => {},
+    ],
+    useEffect: () => {},
+    Fragment: 'fragment',
+  })
+  const renderCard = (forceOpen, settings) => {
+    settingsSnapshot.value = settings || {}
+    const captures = []
+    const ctx = { ...clientCtx, slots: { ...clientCtx.slots, register: (options, component) => { captures.push(component); return () => {} } } }
+    const mod = definition.factory((id) => (id === 'react' ? makeReact(forceOpen) : {}))
+    mod.apply(ctx)
+    return captures[0]()
+  }
+
+  // The fake createElement takes children verbatim, so a single array child stays
+  // nested (real React flattens it). Walk the tree instead of indexing.
+  const flatten = (node) => {
+    if (node === null || node === undefined || typeof node !== 'object') return []
+    if (Array.isArray(node)) return node.flatMap(flatten)
+    const kids = Array.isArray(node.children) ? node.children.flatMap(flatten) : []
+    return [node, ...kids]
+  }
+  const collapsed = renderCard(false)
+  card(Boolean(collapsed) && collapsed.type === 'li', 'the card root must be an <li> like the shipped cards')
+  const header = flatten(collapsed).find((node) => node.type === 'button')
+  card(Boolean(header) && header.props['aria-expanded'] === false, 'the header must start collapsed (aria-expanded=false)')
+  // The header line is the ONLY text visible while the card is collapsed, so it has to
+  // describe what is actually being checked. It used to be one frozen string that named
+  // Simplified-only glyphs even after the script axis was switched to Simplified, which
+  // contradicted the radio label right below it in the same card. The old check here
+  // ("includes description") also passed on the props key alone, so it proved nothing.
+  const descriptionOf = (tree) => {
+    const node = flatten(tree).find((n) => n && n.props && n.props.key === 'description')
+    return node ? node.children.join('') : ''
+  }
+  const zh = dictionaries.zh
+  const en = dictionaries.en
+  card(Boolean(zh) && Boolean(en), 'the browser half registered no dictionaries')
+  const titleOf = (tree) => {
+    const node = flatten(tree).find((n) => n && n.props && n.props.key === 'name')
+    return node ? node.children.join('') : ''
+  }
+  card(titleOf(collapsed) === zh.title,
+    'the collapsed header must show the title, got ' + JSON.stringify(titleOf(collapsed)))
+  card(descriptionOf(collapsed) === zh.descPrefix + zh.partScriptTraditional +
+    zh.descSeparator + zh.partRegister + zh.descSeparator + zh.partJapanese + zh.descSuffix,
+    'the collapsed header must describe the default checks, got ' + JSON.stringify(descriptionOf(collapsed)))
+  const asSimplified = descriptionOf(renderCard(false, { script: 'simplified' }))
+  card(asSimplified.includes(zh.partScriptSimplified) && !asSimplified.includes(zh.partScriptTraditional),
+    'switching the script axis to Simplified must change the header line, got ' + JSON.stringify(asSimplified))
+  const asScriptOff = descriptionOf(renderCard(false, { script: 'off' }))
+  card(asScriptOff === zh.descPrefix + zh.partRegister + zh.descSeparator + zh.partJapanese +
+    zh.descScriptSkipped + zh.descSuffix,
+    'the header line must drop the script axis and say so, got ' + JSON.stringify(asScriptOff))
+  const asNothing = descriptionOf(renderCard(false, { script: 'off', register: false, japanese: false }))
+  card(asNothing === zh.descNone,
+    'the header line must say nothing is being checked, got ' + JSON.stringify(asNothing))
+  const asDisabled = descriptionOf(renderCard(false, { enabled: false }))
+  card(asDisabled === zh.enabledOff,
+    'the header line must say the guard is off, got ' + JSON.stringify(asDisabled))
+  // The same line in the other locale: the parts AND the separator come from that
+  // locale's dictionary, so an English user does not get a Chinese list joined by the
+  // Chinese separator.
+  localeName = 'en'
+  const asEnglish = descriptionOf(renderCard(false))
+  localeName = 'zh'
+  card(asEnglish === en.descPrefix + en.partScriptTraditional + en.descSeparator +
+    en.partRegister + en.descSeparator + en.partJapanese + en.descSuffix,
+    'the English header line is wrong, got ' + JSON.stringify(asEnglish))
+  card(Object.keys(zh).every((key) => en[key] !== undefined),
+    'the English dictionary is missing: ' + Object.keys(zh).filter((key) => en[key] === undefined).join(', '))
+  card(!JSON.stringify(collapsed).includes('chinese-script-policy-mode'),
+    'the collapsed card must not render the form')
+
+  const expanded = renderCard(true)
+  const tree = JSON.stringify(expanded)
+  card(tree.includes('chinese-script-policy-mode'), 'the expanded card did not render the block/warn switch')
+  card(tree.includes('chinese-script-policy-script') && tree.includes('"scriptSimplified"'),
+    'the expanded card did not render the three-way script choice')
+  card(tree.includes('"register"') && tree.includes('"japanese"'), 'the expanded card did not render the other axes')
+  card(tree.includes('"name":"chinese-script-policy-mode"') || tree.includes('"chinese-script-policy-mode"'),
+    'the mode radios are not grouped under the namespace')
+} catch (e) {
+  problems.push('browser half error: ' + e.message)
+}
+
+console.log('\nplugin write guard            (' + guardChecks + ' checks)')
+console.log('  ' + (guardChecks - guardProblems) + '/' + guardChecks +
+  (guardProblems ? '   wrong: ' + problems.slice(0, guardProblems).join(' | ') : ''))
+console.log('browser settings card         (' + cardChecks + ' checks)')
+console.log('  ' + (cardChecks - cardProblems) + '/' + cardChecks +
+  (cardProblems ? '   wrong: ' + problems.slice(0, cardProblems).join(' | ') : ''))
+console.log('settings section described    (' + settingsChecks + ' checks)')
+console.log('  ' + (settingsChecks - settingsProblems) + '/' + settingsChecks +
+  (settingsProblems ? '   wrong: ' + problems.slice(0, settingsProblems).join(' | ') : ''))
+
+console.log(problems.length ? '\nFAIL: ' + problems.join('; ') : '\nPASS: the real registry lists and loads this skill')
+process.exit(problems.length ? 1 : 0)

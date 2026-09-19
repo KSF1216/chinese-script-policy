@@ -1,0 +1,1140 @@
+{
+  "comment": "Test fixtures for selftest.js. Deliberately bilingual: the input side of the Simplified -> Traditional cases IS Simplified. Listed in .tradzhignore, so the checker and the write hook leave it alone. The writtenConvert section pins PARTIAL register conversion: the first group must convert, the second must NOT (房屋企業 contains 屋企, 早點解決 contains 點解), and each expected value must be stable when the step runs again. Note 我食咗飯 -> 我食了飯, not 吃了: 食 is ordinary Chinese, so only the Cantonese-only glyph moves - the step removes what cannot be written Chinese, it does not produce perfect prose.",
+  "s2t": [
+    [
+      "后面",
+      "後面"
+    ],
+    [
+      "头发",
+      "頭髮"
+    ],
+    [
+      "出发",
+      "出發"
+    ],
+    [
+      "干杯",
+      "乾杯"
+    ],
+    [
+      "干部",
+      "幹部"
+    ],
+    [
+      "干净",
+      "乾淨"
+    ],
+    [
+      "一只猫",
+      "一隻貓"
+    ],
+    [
+      "只有",
+      "只有"
+    ],
+    [
+      "台风",
+      "颱風"
+    ],
+    [
+      "台湾",
+      "臺灣"
+    ],
+    [
+      "里面",
+      "裡面"
+    ],
+    [
+      "面条",
+      "麵條"
+    ],
+    [
+      "了解",
+      "瞭解"
+    ],
+    [
+      "这个事情",
+      "這個事情"
+    ],
+    [
+      "皇后",
+      "皇后"
+    ],
+    [
+      "后台",
+      "後臺"
+    ],
+    [
+      "发言",
+      "發言"
+    ],
+    [
+      "干涉",
+      "干涉"
+    ],
+    [
+      "后来",
+      "後來"
+    ],
+    [
+      "是的",
+      "是的"
+    ],
+    [
+      "干燥",
+      "乾燥"
+    ],
+    [
+      "树干",
+      "樹幹"
+    ],
+    [
+      "干活",
+      "幹活"
+    ],
+    [
+      "干嘛",
+      "幹嘛"
+    ],
+    [
+      "只是",
+      "只是"
+    ],
+    [
+      "船只",
+      "船隻"
+    ],
+    [
+      "里程",
+      "里程"
+    ],
+    [
+      "方便面",
+      "方便麵"
+    ],
+    [
+      "几率",
+      "機率"
+    ],
+    [
+      "红曲",
+      "紅麴"
+    ],
+    [
+      "罗嗦",
+      "囉嗦"
+    ],
+    [
+      "不方便面试",
+      "不方便面試"
+    ],
+    [
+      "方便面谈",
+      "方便面談"
+    ],
+    [
+      "方便面交",
+      "方便面交"
+    ],
+    [
+      "方便面会",
+      "方便面會"
+    ],
+    [
+      "方便面签",
+      "方便面簽"
+    ],
+    [
+      "红曲线",
+      "紅曲線"
+    ],
+    [
+      "红曲面",
+      "紅曲面"
+    ],
+    [
+      "红曲调",
+      "紅曲調"
+    ],
+    [
+      "红曲奇",
+      "紅曲奇"
+    ],
+    [
+      "面线",
+      "面線"
+    ],
+    [
+      "见面线上",
+      "見面線上"
+    ],
+    [
+      "意面",
+      "意麵"
+    ],
+    [
+      "蒙蔽",
+      "矇蔽"
+    ],
+    [
+      "尽量",
+      "儘量"
+    ]
+  ],
+  "t2s": [
+    [
+      "著作",
+      "著作"
+    ],
+    [
+      "乾杯",
+      "干杯"
+    ],
+    [
+      "乾淨",
+      "干净"
+    ],
+    [
+      "頭髮",
+      "头发"
+    ],
+    [
+      "出發",
+      "出发"
+    ],
+    [
+      "一隻貓",
+      "一只猫"
+    ],
+    [
+      "只有",
+      "只有"
+    ],
+    [
+      "麵條",
+      "面条"
+    ],
+    [
+      "裡面",
+      "里面"
+    ],
+    [
+      "皇后",
+      "皇后"
+    ],
+    [
+      "瞭解",
+      "了解"
+    ],
+    [
+      "後面",
+      "后面"
+    ],
+    [
+      "干涉",
+      "干涉"
+    ],
+    [
+      "樹幹",
+      "树干"
+    ],
+    [
+      "幹活",
+      "干活"
+    ],
+    [
+      "臺灣",
+      "台湾"
+    ],
+    [
+      "颱風",
+      "台风"
+    ],
+    [
+      "里程",
+      "里程"
+    ],
+    [
+      "船隻",
+      "船只"
+    ],
+    [
+      "麵包",
+      "面包"
+    ],
+    [
+      "面對",
+      "面对"
+    ],
+    [
+      "發展",
+      "发展"
+    ],
+    [
+      "理髮",
+      "理发"
+    ],
+    [
+      "明瞭",
+      "明了"
+    ]
+  ],
+  "known": [
+    [
+      "著急 -> 著急",
+      "want 着急; tw2s territory, see selftest.js comment"
+    ],
+    [
+      "软件 -> 軟件",
+      "want 軟體; the 繁體偏好 wording table is opt-in (--wording)"
+    ]
+  ],
+  "written": [
+    [
+      "我哋而家去邊度食飯？",
+      "flag"
+    ],
+    [
+      "點解你要走？",
+      "clean"
+    ],
+    [
+      "佢話有冇得閒。",
+      "flag"
+    ],
+    [
+      "你食咗飯未？",
+      "flag"
+    ],
+    [
+      "出嚟傾偈啦。",
+      "flag"
+    ],
+    [
+      "我們現在去哪裡吃飯？為什麼不叫我。",
+      "clean"
+    ],
+    [
+      "關係、係數、幾個、旁邊、傾談、濃郁、靚妝。",
+      "clean"
+    ],
+    [
+      "咩咩叫的小羊。",
+      "clean"
+    ],
+    [
+      "今天收工了，明天要返工。",
+      "clean"
+    ],
+    [
+      "青天有月來幾時。",
+      "clean"
+    ],
+    [
+      "房屋企業在旁邊度過，早點解決問題。",
+      "clean"
+    ],
+    [
+      "取得閒置土地，因而家庭和睦，飲食飯店與喜好食物。",
+      "clean"
+    ],
+    [
+      "從頭先看一遍，由先至後檢查，他呢個性很強。",
+      "clean"
+    ],
+    [
+      "仲裁有兩種做法，仲裁要求也不同。",
+      "clean"
+    ],
+    [
+      "佢先至話我知，仲有兩件事未做。",
+      "flag"
+    ],
+    [
+      "你行先，我食緊飯，畀本書我。",
+      "flag"
+    ],
+    [
+      "演講先生談實行先進技術，零食緊缺。",
+      "clean"
+    ],
+    [
+      "你先走，要緊的事先處理，大家不要緊張。",
+      "clean"
+    ],
+    [
+      "給我一本書，他比我大。",
+      "clean"
+    ]
+  ],
+  "compat": [
+    [
+      "這是\u8c48字（正常的一般漢字）",
+      "這是\u8c48字（正常的一般漢字）",
+      0
+    ],
+    [
+      "這是\ufa00字（相容區的同一字）",
+      "這是\u5207字（相容區的同一字）",
+      1
+    ],
+    [
+      "\ufa19\ufa1a\ufa1b",
+      "\u795e\u7965\u798f",
+      3
+    ]
+  ],
+  "pua": [
+    [
+      "乾淨的繁體文字，沒有任何私有使用區字元。",
+      0
+    ],
+    [
+      "這是測試",
+      1
+    ],
+    [
+      "",
+      3
+    ]
+  ],
+  "ui": {
+    "comment": "Fixtures for the generated web pages. They live here, next to the CLI fixtures, for the same reason: this file is in .tradzhignore, so the checker and the write hook never have to be told to ignore a .js file full of Simplified and Cantonese sample text.",
+    "convert": {
+      "toTraditional": [
+        "后面的软件很干净",
+        "後面的軟件很乾淨"
+      ],
+      "toSimplified": [
+        "後面的軟體很乾淨",
+        "后面的软体很干净"
+      ],
+      "tcVocab": [
+        "软件和硬盘都坏了，网络要更新",
+        "軟體和硬碟都壞了，網路要更新"
+      ],
+      "scVocab": [
+        "軟體和硬碟與網路",
+        "软件和硬盘与网络",
+        "软体和硬碟与网路"
+      ],
+      "written": [
+        "佢哋嘅嘢",
+        "他們的東西"
+      ],
+      "writtenLeftover": [
+        "我要返屋企",
+        "我要返屋企"
+      ]
+    },
+    "inspect": {
+      "text": "这个是简体字\n我哋而家去邊度食飯\n後面乾淨\n竜と発の図",
+      "afterToTraditional": "這個是簡體字\n我哋而家去邊度食飯\n後面乾淨\n竜と発の図",
+      "afterToTraditionalJapanese": "這個是簡體字\n我哋而家去邊度食飯\n後面乾淨\n龍と發の圖"
+    }
+  },
+  "encoding": {
+    "comment": "Byte-level fixtures for detectEncoding. Hex, not text, because Node cannot encode Big5/GB18030/Shift-JIS back to bytes. Produced from real files written through the matching code page on Windows (see references/encoding.md). \"label\" is a substring that must appear in the reported label; \"text\" is the exact decoded text (null = the bytes must not become checkable text at all).",
+    "cases": [
+      {
+        "name": "tc-utf8.txt",
+        "hex": "e5be8ce99da2e8bb9fe9ab94e5be88e4b9bee6b7a8efbc8ce8a3a1e99da2e6b292e69c89e5958fe9a18ce38082e98099e698afe4b880e4bbbde7b981e9ab94e4b8ade69687e6b8ace8a9a6e69687e4bbb6e38082",
+        "enc": "utf-8",
+        "label": null,
+        "text": "後面軟體很乾淨，裡面沒有問題。這是一份繁體中文測試文件。"
+      },
+      {
+        "name": "tc-big5.txt",
+        "hex": "abe1adb1b36ec5e9abdcb0aeb262a141b8ccadb1a853a6b3b0ddc344a143b36fac4fa440a5f7c163c5e9a4a4a4e5b4fab8d5a4e5a5f3a143",
+        "enc": "big5",
+        "label": null,
+        "text": "後面軟體很乾淨，裡面沒有問題。這是一份繁體中文測試文件。"
+      },
+      {
+        "name": "hk-cp950.txt",
+        "hex": "3f3f3f3fabd7a141adf8a66eaddaca5ca8aba143",
+        "enc": "big5",
+        "label": null,
+        "text": "????度，唔好俾佢走。"
+      },
+      {
+        "name": "cn-gb18030.txt",
+        "hex": "baf3c3e6c8edcce5badcb8c9bebba3acc0efc3e6c3bbd3d0cecacce2a1a3d5e2cac7d2bbb7ddb7b1cce5d6d0cec4b2e2cad4cec4bcfea1a3",
+        "enc": "gb18030",
+        "label": null,
+        "text": "后面软体很干净，里面没有问题。这是一份繁体中文测试文件。"
+      },
+      {
+        "name": "cn-gbk.txt",
+        "hex": "baf3c3e6c8edcce5badcb8c9bebba3acc0efc3e6c3bbd3d0cecacce2a1a3d5e2cac7d2bbb7ddb7b1cce5d6d0cec4b2e2cad4cec4bcfea1a3",
+        "enc": "gb18030",
+        "label": null,
+        "text": "后面软体很干净，里面没有问题。这是一份繁体中文测试文件。"
+      },
+      {
+        "name": "jp-sjis.txt",
+        "hex": "82b182ea82cd93fa967b8cea82cc83658358836782c582b781428abf8e9a82e08dac82b482c182c482a282dc82b7814293c782dd82c982ad82a282c582b782cb8142",
+        "enc": "not-chinese",
+        "label": "Japanese",
+        "text": null
+      },
+      {
+        "name": "kr-euckr.txt",
+        "hex": "c0ccb0cdc0ba20c7d1b1b9beee20c5d7bdbac6aec0d4b4cfb4d92e20c7d1c0dab5b520bcafbfa920c0d6bdc0b4cfb4d92e20c0d0b1e220beeeb7c6bdc0b4cfb4d92e",
+        "enc": "not-chinese",
+        "label": "Korean",
+        "text": null
+      },
+      {
+        "name": "de-acc-cp1252.txt",
+        "hex": "4465757473636865722054657874206d697420556d6c617574656e3a204772fcdf652c20736368f66e2c204dfc6c6c65722c204be473652e",
+        "enc": "not-chinese",
+        "label": "single-byte",
+        "text": null
+      },
+      {
+        "name": "fr-acc-cp1252.txt",
+        "hex": "5465787465206672616ee7616973203a20e974e92c20636166e92c20676172e76f6e2c207472e87320e96c6576e92c2064e96ae02076752e",
+        "enc": "not-chinese",
+        "label": "single-byte",
+        "text": null
+      },
+      {
+        "name": "ru-cp1251.txt",
+        "hex": "ddf2ee20f0f3f1f1eae8e920f2e5eaf1f220e4ebff20eff0eee2e5f0eae820eaeee4e8f0eee2eae82e20d7e8f2e0e5f2f1ff20ebe5e3eaee2e",
+        "enc": "undecodable",
+        "label": null,
+        "text": null
+      },
+      {
+        "name": "ru-koi8r.txt",
+        "hex": "fcd4cf20d2d5d3d3cbc9ca20d4c5cbd3d420c4ccd120d0d2cfd7c5d2cbc920cbcfc4c9d2cfd7cbc92e20fec9d4c1c5d4d3d120ccc5c7cbcf2e",
+        "enc": "undecodable",
+        "label": null,
+        "text": null
+      }
+    ]
+  },
+  "japanese": [
+    [
+      "竜と発つ図と円、駅に亜流の仏。",
+      "flag"
+    ],
+    [
+      "竜",
+      "flag"
+    ],
+    [
+      "猫と姉と値と剣と剤と単と厳。",
+      "flag"
+    ],
+    [
+      "日本語の文章です。",
+      "clean"
+    ],
+    [
+      "玉山主峰的群眾起床後才華洋溢，予以肯定。預先研究花瓶，翻閱萌芽，褒獎郎君。",
+      "clean"
+    ],
+    [
+      "萬與並體餘併偽黨凜即台灣唇岳莊床辯御恆慎才晃概槙欠為煙瓶痴痺真研秘稜粧粽糸緒缶群翻舖藝萌蟲蠶衛褒觸證豐連郎鎮餅",
+      "clean"
+    ],
+    [
+      "万与並予伝体余併偽党凜即台唇岳峰庄床弁御恒慎才晃概槙欠為煙瓶痴痺真研秘稜粧粽糸緒缶群翻舖芸萌虫蚕衛褒触証豊連郎鎮餅",
+      "clean"
+    ],
+    [
+      "峠辻笹榊栃畠畑匂凪凧凩枠込躾働錻襷辷糀樫竏",
+      "flag"
+    ],
+    [
+      "腺俣搾鱈萩粁瓩",
+      "clean"
+    ],
+    [
+      "峠を越えて畑を耕し、辻で働く。",
+      "flag"
+    ],
+    [
+      "腺の研究、搾乳、萩の花。",
+      "clean"
+    ],
+    [
+      "予定通りに進める。",
+      "flag"
+    ],
+    [
+      "予約と予備と予測、丁寧な世論。",
+      "flag"
+    ],
+    [
+      "弁護士の包丁と間欠的な酢酸。",
+      "flag"
+    ],
+    [
+      "連想、連名、補佐、膨張、希少、連係、連盟。",
+      "flag"
+    ],
+    [
+      "他向長官交差，別暴露身分，也不要放棄，請把連結給我，我們連合所有消費者。",
+      "clean"
+    ],
+    [
+      "船停泊在港內，產業衰退，經驗欠缺，汗水浸透衣服。",
+      "clean"
+    ],
+    [
+      "他的意向明確，弦歌不輟，記得連絡，火炎山在苗栗。",
+      "clean"
+    ],
+    [
+      "暗夜裡兩國講和，五行相克，貿易障壁，凶器已尋獲。",
+      "clean"
+    ]
+  ],
+  "japanesePhraseOnly": [
+    [
+      "予定"
+    ],
+    [
+      "予約"
+    ],
+    [
+      "丁寧"
+    ],
+    [
+      "世論"
+    ],
+    [
+      "弁護士"
+    ]
+  ],
+  "japaneseConvert": [
+    [
+      "竜",
+      "龍"
+    ],
+    [
+      "発",
+      "發"
+    ],
+    [
+      "図",
+      "圖"
+    ],
+    [
+      "円",
+      "圓"
+    ],
+    [
+      "駅",
+      "驛"
+    ],
+    [
+      "亜",
+      "亞"
+    ],
+    [
+      "仏",
+      "佛"
+    ],
+    [
+      "猫",
+      "貓"
+    ],
+    [
+      "値",
+      "值"
+    ],
+    [
+      "姉",
+      "姊"
+    ]
+  ],
+  "japaneseConvertToSimplified": [
+    [
+      "竜",
+      "龙"
+    ],
+    [
+      "発",
+      "发"
+    ],
+    [
+      "図",
+      "图"
+    ],
+    [
+      "円",
+      "圆"
+    ],
+    [
+      "駅",
+      "驿"
+    ],
+    [
+      "亜",
+      "亚"
+    ],
+    [
+      "仏",
+      "佛"
+    ],
+    [
+      "姉",
+      "姊"
+    ],
+    [
+      "猫",
+      "猫"
+    ],
+    [
+      "畑",
+      "畑"
+    ]
+  ],
+  "writtenConvert": [
+    [
+      "佢哋嘅嘢",
+      "他們的東西"
+    ],
+    [
+      "我食咗飯",
+      "我食了飯"
+    ],
+    [
+      "佢喺屋企",
+      "他在屋企"
+    ],
+    [
+      "唔該你",
+      "謝謝你"
+    ],
+    [
+      "有冇問題",
+      "有沒有問題"
+    ],
+    [
+      "冇問題",
+      "沒有問題"
+    ],
+    [
+      "我唔知",
+      "我不知道"
+    ],
+    [
+      "唔係佢",
+      "不是他"
+    ],
+    [
+      "唔使客氣",
+      "不用客氣"
+    ],
+    [
+      "唔好意思",
+      "不好意思"
+    ],
+    [
+      "嗰個人",
+      "那個人"
+    ],
+    [
+      "咁樣唔得",
+      "這樣唔得"
+    ],
+    [
+      "佢嚟咗",
+      "他來了"
+    ],
+    [
+      "乜嘢",
+      "什麼"
+    ],
+    [
+      "房屋企業",
+      "房屋企業"
+    ],
+    [
+      "在旁邊度過",
+      "在旁邊度過"
+    ],
+    [
+      "早點解決問題",
+      "早點解決問題"
+    ],
+    [
+      "取得閒置土地",
+      "取得閒置土地"
+    ],
+    [
+      "因而家庭和睦",
+      "因而家庭和睦"
+    ],
+    [
+      "飲食飯店",
+      "飲食飯店"
+    ],
+    [
+      "喜好食物",
+      "喜好食物"
+    ],
+    [
+      "從頭先看一遍",
+      "從頭先看一遍"
+    ],
+    [
+      "由先至後",
+      "由先至後"
+    ],
+    [
+      "大佬",
+      "大佬"
+    ],
+    [
+      "諗住",
+      "諗住"
+    ],
+    [
+      "我要返屋企",
+      "我要返屋企"
+    ],
+    [
+      "點解",
+      "點解"
+    ]
+  ],
+  "cli": [
+    {
+      "name": "未知旗標要被拒絕，不要默默忽略",
+      "args": ["--bogus-flag", "--dir", "."],
+      "exit": 2,
+      "has": "unknown option"
+    },
+    {
+      "name": "1.1.0 改名的舊旗標要被拒絕並給出提示",
+      "args": ["--tw-vocab", "--to-traditional", "--text", "后面"],
+      "exit": 2,
+      "has": "renamed to --wording"
+    },
+    {
+      "name": "簡->繁（腳本步驟）",
+      "args": ["--to-traditional", "--text", "后面的软件"],
+      "exit": 0,
+      "has": "CONVERTED: 後面的軟件"
+    },
+    {
+      "name": "繁->簡（腳本步驟）",
+      "args": ["--to-simplified", "--text", "後面的軟體"],
+      "exit": 0,
+      "has": "CONVERTED: 后面的软体"
+    },
+    {
+      "name": "只清日文（不轉腳本）",
+      "args": ["--convert-japanese", "--text", "竜と発の図"],
+      "exit": 0,
+      "has": "CONVERTED: 龍と發の圖"
+    },
+    {
+      "name": "日文預設關：簡->繁不該動它",
+      "args": ["--to-traditional", "--text", "竜"],
+      "exit": 0,
+      "has": "CONVERTED: 竜"
+    },
+    {
+      "name": "簡->繁＋清日文（曾經是無聲 no-op）",
+      "args": ["--to-traditional", "--convert-japanese", "--text", "竜"],
+      "exit": 0,
+      "has": "CONVERTED: 龍"
+    },
+    {
+      "name": "繁->簡＋清日文：要走過繁體才接得起來",
+      "args": ["--to-simplified", "--convert-japanese", "--text", "竜"],
+      "exit": 0,
+      "has": "CONVERTED: 龙"
+    },
+    {
+      "name": "轉書面語：只轉一定不是書面語的",
+      "args": ["--to-written", "--text", "佢哋嘅嘢"],
+      "exit": 0,
+      "has": "CONVERTED: 他們的東西"
+    },
+    {
+      "name": "轉書面語不咬正常中文（早點解決 不再是粵語標記）",
+      "args": ["--to-written", "--text", "早點解決"],
+      "exit": 0,
+      "has": "CONVERTED: 早點解決"
+    },
+    {
+      "name": "轉書面語留下轉不到的（返屋企）要看得出來",
+      "args": ["--to-written", "--text", "我要返屋企"],
+      "exit": 1,
+      "has": "返屋企"
+    },
+    {
+      "name": "清日文留下日文詞：要看得出來（予定）",
+      "args": ["--convert-japanese", "--text", "予定"],
+      "exit": 1,
+      "has": "予定"
+    },
+    {
+      "name": "錯順序不會沉默：簡體軸抓到殘留的繁體字",
+      "args": ["--simplified", "--text", "龍"],
+      "exit": 1,
+      "has": "RESULT: 1 occurrence"
+    },
+    {
+      "name": "用語偏好層（選用）",
+      "args": ["--wording", "--to-traditional", "--text", "软件"],
+      "exit": 0,
+      "has": "CONVERTED: 軟體"
+    },
+    {
+      "name": "繁->簡預設保留繁體偏好用語",
+      "args": ["--to-simplified", "--text", "軟體和硬碟"],
+      "exit": 0,
+      "has": "CONVERTED: 软体和硬碟"
+    },
+    {
+      "name": "繁->簡＋--wording 換成簡體偏好用語",
+      "args": ["--to-simplified", "--wording", "--text", "軟體和硬碟，搭計程車，看影片"],
+      "exit": 0,
+      "has": "CONVERTED: 软件和硬盘，搭出租车，看视频"
+    },
+    {
+      "name": "--sc-vocab 只能配繁->簡",
+      "args": ["--wording", "--to-written", "--text", "x"],
+      "exit": 2,
+      "has": "needs a direction"
+    },
+    {
+      "name": "相容表意文字：轉換時正規化",
+      "args": ["--to-traditional", "--text", "這是\ufa00字"],
+      "exit": 0,
+      "has": "CONVERTED: 這是切字"
+    },
+    {
+      "name": "相容表意文字：檢查時會警告並計入",
+      "args": ["--traditional", "--text", "這是\ufa00字"],
+      "exit": 1,
+      "has": "compatibility ideograph"
+    },
+    {
+      "name": "--to-japanese 故意報錯",
+      "args": ["--to-japanese", "--text", "x"],
+      "exit": 2,
+      "has": "there is no --to-japanese"
+    },
+    {
+      "name": "輸出編碼風險：print() 裡的簡體字（cp950 編不出來）",
+      "args": ["--console-hazard", "--text", "print(\"key: 键\")"],
+      "exit": 1,
+      "has": "U+952E"
+    },
+    {
+      "name": "輸出編碼風險：同一個字只出現在註解裡，不該回報",
+      "args": ["--console-hazard", "--text", "x = \"键\"  # 只是註解"],
+      "exit": 0,
+      "has": "RESULT: clean"
+    },
+    {
+      "name": "輸出編碼風險：emoji 也要抓（不是中文也會炸）",
+      "args": ["--console-hazard", "--text", "print(\"done ✅\")"],
+      "exit": 1,
+      "has": "U+2705"
+    },
+    {
+      "name": "輸出編碼風險：繁體字 cp950 編得出來，不該回報",
+      "args": ["--console-hazard", "--text", "print(\"key: 鍵\")"],
+      "exit": 0,
+      "has": "RESULT: clean"
+    },
+    {
+      "name": "輸出編碼風險：UTF-8 的 codepage 永遠安全",
+      "args": ["--console-hazard", "--codepage", "65001", "--text", "print(\"键 ✅\")"],
+      "exit": 0,
+      "has": "RESULT: clean"
+    },
+    {
+      "name": "輸出編碼風險：--codepage 沒搭配 --console-hazard 要被拒絕",
+      "args": ["--codepage", "950", "--text", "x"],
+      "exit": 2,
+      "has": "only applies to --console-hazard"
+    },
+    {
+      "name": "輸出編碼風險：沒有表的 codepage 要明講，不要靜默放行",
+      "args": ["--console-hazard", "--codepage", "99999", "--text", "x"],
+      "exit": 2,
+      "has": "no codepage table for 99999"
+    },
+    {
+      "name": "輸出編碼風險：這一軸只檢查，不能轉換也不能寫入",
+      "args": ["--console-hazard", "--fix", "--write", "out.txt", "--text", "print(1)"],
+      "exit": 2,
+      "has": "only CHECKS"
+    }
+  ],
+  "hook": {
+    "comment": "Payloads for hook-selftest.mjs. Written to a temp file and fed to the hook over a real pipe, because a PowerShell pipeline mangles UTF-8 on the way in - testing it that way once made a working hook look broken.",
+    "cases": [
+      [
+        "clean Traditional",
+        {
+          "file_path": "note.md",
+          "content": "他用龍與發的圖，峰頂的群眾。"
+        },
+        0
+      ],
+      [
+        "simplified glyph",
+        {
+          "file_path": "note.md",
+          "content": "后面的软件很干净"
+        },
+        2
+      ],
+      [
+        "japanese shinjitai",
+        {
+          "file_path": "note.md",
+          "content": "他用竜與発的圖。"
+        },
+        2
+      ],
+      [
+        "japanese-only word",
+        {
+          "file_path": "note.md",
+          "content": "予定通りに進める。"
+        },
+        2
+      ],
+      [
+        "chinese word the japanese table also has",
+        {
+          "file_path": "note.md",
+          "content": "他向長官交差，別暴露身分。"
+        },
+        0
+      ],
+      [
+        "cantonese register",
+        {
+          "file_path": "note.md",
+          "content": "我哋而家去邊度食飯"
+        },
+        2
+      ],
+      [
+        "non-text target",
+        {
+          "file_path": "image.png",
+          "content": "后面的软件很干净"
+        },
+        0
+      ],
+      [
+        "ignored path",
+        {
+          "file_path": "scripts/simplified-only.json",
+          "content": "后面的软件很干净"
+        },
+        0
+      ],
+      [
+        "inline check-ok",
+        {
+          "file_path": "note.md",
+          "content": "后面的软件很干净 <!-- check-ok -->"
+        },
+        0
+      ],
+      [
+        "edit new_string field",
+        {
+          "file_path": "note.md",
+          "new_string": "竜と発"
+        },
+        2
+      ]
+    ]
+  },
+  "tcVocab": [
+    [
+      "软件",
+      "軟件",
+      "軟體"
+    ],
+    [
+      "硬盘",
+      "硬盤",
+      "硬碟"
+    ],
+    [
+      "鼠标",
+      "鼠標",
+      "滑鼠"
+    ],
+    [
+      "内存",
+      "內存",
+      "記憶體"
+    ],
+    [
+      "屏幕",
+      "屏幕",
+      "螢幕"
+    ],
+    [
+      "信息",
+      "信息",
+      "資訊"
+    ],
+    [
+      "网络",
+      "網絡",
+      "網路"
+    ],
+    [
+      "激光",
+      "激光",
+      "雷射"
+    ],
+    [
+      "服务器",
+      "服務器",
+      "伺服器"
+    ],
+    [
+      "数据库",
+      "數據庫",
+      "資料庫"
+    ],
+    [
+      "打印机",
+      "打印機",
+      "印表機"
+    ],
+    [
+      "地铁",
+      "地鐵",
+      "地鐵"
+    ],
+    [
+      "幼儿园",
+      "幼兒園",
+      "幼兒園"
+    ],
+    [
+      "面对",
+      "面對",
+      "面對"
+    ],
+    [
+      "面条",
+      "麵條",
+      "麵條"
+    ]
+  ]
+}

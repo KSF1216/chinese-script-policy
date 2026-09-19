@@ -1,0 +1,19 @@
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+*.tgz
+*.log
+.DS_Store
+Thumbs.db
+
+# Build output, with one deliberate exception: the offline page is the product's
+# promise ("download it, double-click it, no Node needed"), so that ONE file is
+# committed. `dist/*` instead of `dist/` because git cannot re-include a file inside
+# an excluded directory. web-selftest.mjs rebuilds and byte-compares it, so a stale
+# committed copy fails the test instead of shipping.
+dist/*
+!dist/tradzh.html
+
+# Machine-private deny-list for scripts/api-selftest.mjs's shipped-file scan. It must stay
+# untracked: the file exists precisely to keep those names out of anything that ships.
+.ship-deny.txt

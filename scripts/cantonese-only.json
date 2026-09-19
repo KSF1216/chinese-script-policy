@@ -1,0 +1,105 @@
+{
+  "what": "Cantonese colloquial markers. Detection for everything, conversion for the subset that is unambiguous (convertChars + convertPhrases), and word-order patterns that no word list can see. Word order and grammar beyond those patterns (你行先 -> 你先走, 畀本書我 -> 給我一本書) still belong to the model: the tool detects, the model rewrites, the tool verifies.",
+  "how": "Four detection layers, because any one alone is wrong. `chars` are Cantonese-only glyphs. `phrases` are unambiguously Cantonese but built from standard characters (唔該, 嗰個, 乜嘢) and are the only place a shared glyph such as 唔 may appear. `weakPhrases` are Cantonese words that ALSO occur inside ordinary written Chinese across a word boundary (點解 in 早點解決, 屋企 in 房屋企業) - they are reported only when the same line carries a strong marker. `patterns` catch word order (行先, 食緊, 畀…我).",
+  "weak_rule": "A weakPhrase counts only if the same line also has a Cantonese-only glyph, an unambiguous phrase, or a pattern match. Measured reason (2026-09): 「房屋企業在旁邊度過，早點解決問題。」 produced three hits under plain substring matching, and the write hook would have blocked an ordinary sentence. Known cost, deliberately accepted: a line that is Cantonese but uses ONLY weak words (「點解你要走？」) is no longer flagged - the project's rule is 寧可漏，不要誤判, because a false alarm blocks a write while a miss only loses a hint. The alternative (report weak hits as a NOTE instead of a block) is written up in references/cantonese.md.",
+  "convert_rule": "A string is converted only when it cannot occur in written Chinese at all: the key contains a Cantonese-only glyph (the `chars` list) or 唔, whose Mandarin use is an interjection always followed by punctuation. Phrases made only of standard characters stay DETECT-ONLY, because a greedy table would corrupt ordinary text: 屋企 in 房屋企業, 邊度 in 旁邊度過, 得閒 in 取得閒置, 而家 in 因而家庭, 食飯 in 飲食飯店, 好食 in 喜好食物, 點解 in 早點解決.",
+  "chars": ["嘅", "咗", "喺", "佢", "哋", "啲", "嘢", "咁", "噉", "嗰", "啱", "嘥", "冧", "唞", "攰", "冇", "嚟"],
+  "phrases": ["唔該", "係咪", "有冇", "返屋企", "落雨", "細佬", "大佬", "靚仔", "靚女", "冇問題", "唔緊要", "唔好意思", "睇下", "咁樣", "點樣", "做乜", "乜嘢", "嗰個", "嗰度", "咁多", "有咩", "唔知", "唔會", "唔係", "唔使", "講嘢", "做嘢", "傾偈", "諗住", "攞嘢"],
+  "weakPhrases": ["點解", "而家", "依家", "屋企", "邊度", "邊個", "得閒", "食飯", "好食", "好睇", "頭先", "先至", "呢個", "仲有", "仲要"],
+  "patterns": [
+    {
+      "re": "(?:行|食|走|做|講|睇|買|去|嚟|瞓|等|沖|洗)先(?![進生例鋒導輩前天知覺決後])",
+      "why": "粵語把「先」放在動詞後（你行先＝你先走），書面中文放前面。lookahead 排除跨詞巧合：實行先進、演講先生"
+    },
+    {
+      "re": "(?:食|行|做|講|睇|嚟|去|瞓|等)緊(?!急|張|要|密|縮|接|缺|跟|握|咬|逼|記|固|實|貼|靠|湊|擁|壓|催|盯|迫)",
+      "why": "粵語進行式「V緊」（我食緊飯＝我正在吃飯）。lookahead 排除零食緊缺、緊急、緊張這類"
+    },
+    {
+      "re": "畀[^，。！？、\\s]{1,6}我",
+      "why": "粵語雙賓語語序（畀本書我＝給我一本書）；「畀」在現代書面中文幾乎不出現"
+    }
+  ],
+  "convertChars": {
+    "嘅": "的",
+    "咗": "了",
+    "喺": "在",
+    "佢": "他",
+    "哋": "們",
+    "嘢": "東西",
+    "嗰": "那",
+    "嘥": "浪費",
+    "唞": "休息",
+    "攰": "累",
+    "冇": "沒有",
+    "嚟": "來"
+  },
+  "convertPhrases": {
+    "唔該": "謝謝",
+    "有冇": "有沒有",
+    "冇問題": "沒有問題",
+    "唔緊要": "不要緊",
+    "唔好意思": "不好意思",
+    "唔知": "不知道",
+    "唔會": "不會",
+    "唔係": "不是",
+    "唔使": "不用",
+    "嗰個": "那個",
+    "嗰度": "那裡",
+    "咁樣": "這樣",
+    "咁多": "這麼多",
+    "乜嘢": "什麼",
+    "講嘢": "說話",
+    "做嘢": "做事",
+    "攞嘢": "拿東西"
+  },
+  "triage": {
+    "weak": {
+      "點解": "早點解決、地點解決",
+      "而家": "因而家庭",
+      "依家": "依家庭狀況而定",
+      "屋企": "房屋企業",
+      "邊度": "旁邊度過",
+      "邊個": "旁邊個人",
+      "得閒": "取得閒置",
+      "食飯": "飲食飯店",
+      "好食": "喜好食物",
+      "好睇": "嗜好睇戲",
+      "頭先": "從頭先看一遍",
+      "先至": "由先至後",
+      "呢個": "他呢個性很強（少見但存在）",
+      "仲有": "仲裁有兩種",
+      "仲要": "仲裁要求"
+    },
+    "phrase_only": {
+      "係": "標準中文也用：關係、係數（所以只能出現在詞組鍵裡）",
+      "唔": "普通話也有感嘆詞「唔」；粵語用法是「不」，只收進 convertPhrases 與 phrases",
+      "睇": "古漢語「睇」＝看；現代書面語幾乎只出現在粵語語境，但保守起見只做偵測",
+      "幾": "幾個、幾乎",
+      "邊": "旁邊、邊界",
+      "傾": "傾談、傾斜",
+      "諗": "古漢語「諗」＝知道、思念",
+      "畀": "文言「畀予」；但「畀…我」的語序是粵語，所以放在 patterns 裡",
+      "俾": "文言「俾使」",
+      "郁": "濃郁",
+      "靚": "靚妝（罕但存在）"
+    },
+    "convert_only_when_glyph_is_cantonese": {
+      "啲": "「些」或「的」或「點」都可能（快啲＝快點、呢啲＝這些）→ 不轉",
+      "咁": "「這麼」或「那麼」或「這樣」→ 只在詞組（咁樣、咁多）裡轉",
+      "噉": "同上（這樣／那麼）",
+      "啱": "「對」或「剛好」（啱啱＝剛剛）",
+      "冧": "「倒塌」或「迷住」"
+    },
+    "detect_only_standard_char_phrases": {
+      "大佬": "意思不只一個（哥哥／老大／招呼語）",
+      "諗住": "打算／以為，意思不只一個"
+    },
+    "dropped": {
+      "咩": "普通話的羊叫聲「咩咩叫」→ 只留詞組「有咩」",
+      "收工": "標準中文也用（＝收尾、下班）",
+      "幾時": "古詩也用（「青天有月來幾時」）",
+      "返工": "標準中文指「重做、退貨返工」，與粵語「上班」撞義"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# Line endings: LF everywhere, on every platform.
+#
+# Why this is not just style here: scripts/build-web.js inlines core.js, web-page.js and
+# the seven JSON tables into dist/tradzh.html VERBATIM, and scripts/web-selftest.mjs then
+# rebuilds that page and compares the two files BYTE FOR BYTE. core.autocrlf=true is the
+# common Windows default, and a fresh clone that converts those sources to CRLF produces
+# a page whose bytes differ from the committed one - so `npm test` fails on a clean
+# checkout of a repo that is perfectly fine on the machine that built it.
+#
+# Diagnosed 2026-09 by cloning the repo into a temp directory and running the suite:
+# the committed page had 0 CRLF, the rebuilt page had thousands.
+#
+# `text=auto` still lets git decide what is text, so a future binary file is untouched.
+* text=auto eol=lf
+
+# Belt and braces for the one generated file that is diffed by bytes: never rewrite it,
+# whichever attribute rule would apply.
+dist/tradzh.html -text

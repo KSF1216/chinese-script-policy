@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chinese-script-policy：網頁應用示範</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0 auto; max-width: 46rem; padding: 24px;
+         font-family: "Segoe UI", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+         line-height: 1.7; }
+  h1 { font-size: 1.3rem; }
+  textarea { width: 100%; min-height: 7rem; font: inherit; padding: 8px; box-sizing: border-box; }
+  button { font: inherit; padding: 6px 14px; margin-right: 8px; cursor: pointer; }
+  pre { padding: 12px; background: #8881; border-radius: 6px; overflow: auto; white-space: pre-wrap; }
+  .bad { border-left: 4px solid #d33; }
+  .good { border-left: 4px solid #2a2; }
+  .hint { font-size: 13px; opacity: .75; }
+</style>
+</head>
+<body>
+<h1>網頁應用示範：同一個規範，接在 API 邊界上</h1>
+<p class="hint">
+  這一頁只是殼。檢查與轉換都在後端（<code>chinese-script-policy/lib</code>），
+  用的就是 DSH 寫入 hook 的同一個 <code>guardInspect</code>——所以網頁與 agent 兩邊的判斷不會分岔。
+  前端若要在打字時即時檢查、不想來回打 API，改成把 <code>chinese-script-policy/core</code>
+  打包進前端就行（同一份演算法，字表自己注入）。
+</p>
+
+<textarea id="text" placeholder="在這裡輸入或貼上文字…"></textarea>
+<p>
+  <button data-act="check">檢查</button>
+  <button data-act="traditional">轉繁體</button>
+  <button data-act="simplified">轉簡體</button>
+  <button data-act="written">粵語轉書面語</button>
+</p>
+<p class="hint">
+  <label><input type="checkbox" id="wording"> 用語偏好</label>
+  —— 轉繁體時套用繁體偏好（<code>軟件</code>→<code>軟體</code>），轉簡體時套用簡體偏好；
+  <strong>用哪一張表由方向決定</strong>（一個開關，不可能配錯），預設關。
+</p>
+<pre id="out">（結果會出現在這裡）</pre>
+
+<script>
+const out = document.getElementById('out');
+const box = document.getElementById('text');
+
+async function post(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return { status: r.status, data: await r.json() };
+}
+
+document.querySelectorAll('button').forEach((b) => b.addEventListener('click', async () => {
+  const act = b.dataset.act;
+  out.className = '';
+  try {
+    if (act === 'check') {
+      const { status, data } = await post('/api/check', { text: box.value });
+      out.className = status === 200 ? 'good' : 'bad';
+      out.textContent = status === 200
+        ? '通過：這段文字的主軸與兩條副軸都乾淨。'
+        : '擋下（HTTP ' + status + '）：\n' + data.reason;
+    } else {
+      const { data } = await post('/api/convert', {
+        text: box.value, to: act,
+        wording: document.getElementById('wording').checked,
+      });
+      out.className = 'good';
+      out.textContent = '轉成「' + data.to + '」的結果（原文沒有被改動）：\n' + data.text;
+    }
+  } catch (e) {
+    out.className = 'bad';
+    out.textContent = '錯誤：' + e.message;
+  }
+}));
+</script>
+</body>
+</html>

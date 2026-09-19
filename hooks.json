@@ -1,0 +1,18 @@
+{
+  "_comment": "Hook config for the chinese-script-policy skill. Refuses a write whose content fails any of the three enforced axes - Simplified-Chinese-only glyphs, Cantonese colloquial markers, or Japanese-only kanji and words (shinjitai / kokuji / Japanese-only vocabulary like 予定) - so the model must fix it BEFORE the bytes land on disk. Exit 2 blocks the tool call and stderr becomes the reason the model sees (it names the Traditional form for a Japanese glyph, e.g. 竜 -> 龍). Lines marked check-ok / simplified-example, paths in .tradzhignore and files in cantonese-allow.json are exempt. The hook only ever CHECKS: which conversion steps ran is the caller's choice (--convert-japanese / --to-written / --to-traditional).",
+  "_install": "For Claude Code and other harnesses that speak this hook protocol: install this package as a plugin and let it substitute ${CLAUDE_PLUGIN_ROOT} (or write the absolute path into the command yourself). Never use a shell variable such as $DSH_HOME here: the hook environment does not define it, so it expands to nothing, node exits 1 on a missing module, and because only exit 2 blocks, the write is allowed - a hook that is silently dead. scripts/hook-selftest.mjs exists to catch exactly that. DSH does NOT need this file: the plugin (index.mjs) guards the same writes inside the process, with the same lib.js decision, and exposes the switches in the GUI.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "write|edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/pre-write-check.js\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

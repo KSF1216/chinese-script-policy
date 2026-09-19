@@ -1,0 +1,42 @@
+# Bundle layer for chinese-script-policy.
+#
+# Applied when a profile lists this bundle (`dsh plugin --profile <name> add ...`).
+# It inserts ONE ordinary plugin row. That row does two things:
+#   - registers the skill with ctx.skills.register(), the "embedded skills" path
+#     of @deepseek-ai/dsh-skill;
+#   - owns the write guard itself, through its own `tools/pre-execute` listener,
+#     so a DSH profile needs no hook bridge at all: the guard runs in this
+#     process, reads the same lib.js the CLI does, and is switchable from the GUI.
+#
+# The `config` below is the guard's base layer. A settings card writes the user
+# layer on top of it, so the switches can be changed from the GUI without editing
+# this file or restarting anything. The same values, and the same reasoning, live
+# in index.mjs (resolveSection).
+#
+# The package name carries no `dsh-` prefix on purpose: the skill is not
+# DSH-specific, and dsh resolves a bundle purely by the `dsh.bundle` key in
+# package.json, not by name. Non-DSH users install the same package and simply
+# never load this file.
+#
+# Deliberately NOT configured here, and why:
+#   - `bundledSkillDir` on @deepseek-ai/dsh-skill-filesystem would work too, but a
+#     patch replaces a row's whole `config`, so it would have to restate every key
+#     of the base row, and the directory path would have to resolve inside an
+#     installed package. Registering the skill from our own module avoids both.
+#   - hooks.json is left for OTHER harnesses: it is Claude Code's hook format
+#     (PreToolUse + matcher write|edit + exit 2) and Claude Code consumes it
+#     directly. DSH does not need it - this row guards the same writes in-process.
+#     If you ever wire it into a DSH hook bridge anyway, remember the command is
+#     written with ${CLAUDE_PLUGIN_ROOT} and that a shell variable such as
+#     $DSH_HOME is NOT defined in the hook environment (it expands to nothing,
+#     node exits 1, and since only exit 2 blocks, the write silently goes
+#     through); see README.md.
+- insert:
+    - id: chinese-script-policy
+      name: 'chinese-script-policy'
+      config:
+        enabled: true
+        mode: block
+        script: traditional   # traditional | simplified | off
+        register: true
+        japanese: true

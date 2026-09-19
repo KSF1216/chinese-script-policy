@@ -1,0 +1,49 @@
+# .tradzhignore - files and directories the checker skips.
+#
+# Why this is needed: some files legitimately contain both scripts and must not
+# be reported.
+#   - the glyph tables ARE lists of variant-specific characters
+#   - zh-cn locale files are Simplified by design
+#   - build output vendors third-party code
+#
+# Syntax: one glob per line, # starts a comment, blank lines ignored.
+# Patterns match against the full path and the bare file name.
+
+# the checker's own data tables (these are lists OF the very glyphs we look for)
+**/simplified-only.json
+**/traditional-only.json
+**/traditional-to-simplified.json
+**/simplified-to-traditional.json
+**/cantonese-only.json
+**/japanese-only.json
+**/tc-vocabulary.json
+**/sc-vocabulary.json
+**/cjk-compatibility.json
+**/glyph-preferences.json
+# The codepage repertoires list the characters cp950 / cp936 / cp932 / cp1252 / cp20936 CAN
+# encode, which includes Simplified ones. Without this line every check reports thousands of
+# hits - see references/console-encoding-hazard.md.
+**/codepage-repertoire.json
+
+# conversion test fixtures: the Simplified -> Traditional inputs ARE Simplified
+**/selftest-cases.json
+
+# this project's own dev probes: their probe data IS Simplified, like the fixtures above.
+# Scoped to the project's own directory name on purpose - a bare `**/dev/**` would ship a
+# rule that silently skips a USER's dev folder, and this file must stay project-neutral.
+**/chinese-script-policy/dev/**
+
+# software localization bundles: each locale is written in its own script
+**/public/locales/**
+**/locales/**
+**/lang/**
+
+# build output and vendored code
+**/dist/**
+**/build/**
+**/node_modules/**
+**/.git/**
+
+# Directories that are specific to one project (a vendored upstream checkout, a
+# local model folder, ...) belong in that project's OWN .tradzhignore, not here:
+# this file ships with the tool and must stay project-neutral.
