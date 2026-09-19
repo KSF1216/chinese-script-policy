@@ -185,10 +185,12 @@ claude-code  cli  skill  deepseek-harness  offline
 255；若含中文就無法確定它算字元還是位元組，所以直接避開）。要寫的內容：
 
 ```text
-Harness-neutral Traditional Chinese enforcer and offline converter: agent skill, DSH bundle or CLI. Checks one script axis one way at a time plus Cantonese and Japanese-only kanji/word filters. Converts both directions; optional wording preference.
+Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bundle, CLI). One script axis either way + Cantonese/Japanese-only filters. Converts both ways; optional wording preference. Also: an LLM output guard, cp950/GBK console scan.
 ```
 
-（248 字；`scripts/api-selftest.mjs` 有一條守門測試盯著「≤255 且純 ASCII」。）
+（252 字；`scripts/api-selftest.mjs` 有一條守門測試盯著「≤255 且純 ASCII」，另一條盯著
+「這段文字與 `package.json` 的 `description` **逐字相同**」——2026-09-19 發現這裡的範例
+與實際值不同步（範例少了最後一句），而當時沒有任何測試看得出來。）
 
 **Website**：`https://ksf1216.github.io/chinese-script-policy/`（開 GitHub Pages 之後才會生效，
 步驟見上一節；`index.html` 已經準備好轉向 `dist/tradzh.html`）。
@@ -224,7 +226,7 @@ Harness-neutral Traditional Chinese enforcer and offline converter: agent skill,
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
 | npm（待發布） | **`1.3.0` 已備好**（2026-09-19）：版號已 bump、`dist/tradzh.html` 已重建（頁尾印 `v1.3.0`）、`npm test`／`npm run audit`／`npm pack --dry-run` 全綠。`npm publish` **由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`）；發布後才補 tag `v1.3.0` 與 GitHub Release（body 取 §6 的 1.3.0 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
-| ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼 |
+| ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
 
@@ -419,8 +421,11 @@ GitHub Changelog [2026-07-08](https://github.blog/changelog/2026-07-08-npm-insta
 1. `shasum` 與本機 `npm pack` 的產物一致（這次是 `237751f5277ba7546059f0a4438fa2faf2887887`）
    → 證明「線上的東西＝我們測試過的東西」
 2. 解開線上 tarball 掃一遍：不得出現本機絕對路徑、token、私人專案或模型名這類不該外流的字串
-   （**這一條現在有測試**：`npm test` 的 `api-selftest` 會照 `package.json` 的 `files` 白名單
-   逐一掃。通用樣式隨套件出貨；**只在本機成立的名字放在 `.ship-deny.txt`（不進版控）**——
+   （**這一條現在有測試**：`npm test` 的 `api-selftest` 會掃 **repo 裡所有文字檔**
+   （排除 `node_modules`／`.git`／`.ship-deny.txt`）——不只 tarball，因為這個 repo 是公開的，
+   而 **`package.json` 會出貨卻不在自己的 `files` 白名單裡**，照白名單掃永遠看不到它
+   （2026-09-19 就是這樣漏掉 description 裡的一個名字）。通用樣式隨套件出貨；
+   **只在本機成立的名字放在 `.ship-deny.txt`（不進版控）**——
    把名字寫進會出貨的檔案裡，就是把它公開，哪怕只是「為了禁止它」）
 3. **裝一份下來跑它自己的測試**：`npm i chinese-script-policy@1.0.0` →
    `node node_modules/chinese-script-policy/scripts/selftest.js` 要 exit 0
@@ -545,12 +550,21 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 - `scripts/build-codepage.ps1` 的註解裡有 **15 個非 ASCII 位元組**（五個常見繁體字），
   等於這支腳本自己在違反它要示範的規則。改成 Unicode 碼位（純 ASCII），
   並由 `test:codepage` 驗證那五個字真的不在 cp20936 裡。
+- **出貨掃描的洞補起來了**：它原本只走 `package.json` 的 `files` 白名單，而
+  **`package.json` 會出貨卻不在自己的白名單裡**——所以那個每次安裝都會被讀到的檔案
+  從來沒被掃過（實測：description 裡有一個與本機資料夾同名的字串，就是這樣漏的）。
+  現在改成掃 **repo 裡所有文字檔**（排除 `node_modules`／`.git`／`.ship-deny.txt`），
+  並加一條「leak scan covers package.json」的迴歸測試釘住這個洞。
+  npm description 也順手把那句改成 `an LLM output guard`（252／255 字，意思不變）。
 
 **測試**
-- `test:api` 61 → 66 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
+- `test:api` 61 → 68 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
   讀**原始位元組**確認每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，
   並先證明兩個偵測器真的會紅（讀成文字就看不出差別，所以這條一定要在位元組層）。
   **它第一次跑就抓到真的違規**（就是上面那個 `build-codepage.ps1`）——不是合成的假案例。
+  另外新增兩條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、
+  `PUBLISHING.md` 的 npm 描述範例必須與 `package.json` 的 `description` **逐字相同**
+  （實測那份範例少了最後一句，而當時沒有任何測試看得出來）。
 - `test:plugin` 的設定卡 24 → 27 項：`inspectFileType` 的 14 個行為案例（純 ASCII 放行、
   `.md`／`read` 不觸發、`.cmd` 給 `block` 仍只警告、CRLF 放行而純 LF 觸發）、
   真的 cordis waterfall 上的 3 個掛載案例，以及設定卡的第四組單選與**折疊標題行**跟著 `fileTypes` 變。
@@ -559,6 +573,9 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 - `README.md` 的寫入把關段落補上這兩條檔案類型規則與預設值；
   `references/integration.md` 補 `fileTypes` 的設定、三個刻意設計，以及**兩個還沒做的缺口**
   （`hooks.json` 那條路沒有這條規則、CLI 沒有 `--file-types`）。
+- 兩張交接卡（`NEXT-write-rules.md`、`NEXT-file-type-guard.md`）第一次進版控；
+  進之前先清掉卡裡的本機路徑——`PUBLISHING.md` §5 早就把它們列進索引，
+  公開 repo 上等於指向不存在的檔案。
 ```
 
 ### 1.2.0 — 本機 LLM 的輸出把關、執行時編碼風險、出貨守門
@@ -608,6 +625,9 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
   否則 .NET 會把編不出來的字換成 `?`，得到「全部都編得出來」的假通過。
 ```
 
+### 1.1.0 — 網頁應用入口、術語改名、文件重排
+
+```markdown
 ### 1.1.0 — 網頁應用入口、術語改名、文件重排
 
 **新增**

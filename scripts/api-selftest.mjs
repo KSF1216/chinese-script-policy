@@ -227,6 +227,12 @@ console.log('terminology: the settled names are pinned, because they regressed t
   ok('the npm description fits the registry limit (<=255 chars, ASCII only)',
     pkg.description.length <= 255 && !/[^\x00-\x7F]/.test(pkg.description),
     pkg.description.length + ' chars');
+  // PUBLISHING.md carries a copy-paste block for the npm description (one of the four
+  // exposure points). Found 2026-09-19: the block had drifted - it was missing the last
+  // sentence the real field carried - and nothing could see it, because every other check
+  // reads package.json only. Pin the two together.
+  ok('the PUBLISHING.md npm-description block is the real description, verbatim',
+    readFileSync(path.join(ROOT, 'PUBLISHING.md'), 'utf8').includes(pkg.description));
 
   // Front ends: ONE switch, same name, in all four places that expose it.
   const page = readFileSync(path.join(ROOT, 'scripts', 'web-page.js'), 'utf8');
@@ -245,19 +251,26 @@ console.log('terminology: the settled names are pinned, because they regressed t
 }
 
 // ---------------------------------------------------------------------------
-// Shipped files: no machine-specific strings.
+// Public files: no machine-specific strings.
 //
 // PUBLISHING.md asks for this by hand after a publish: unpack the published tarball and scan
 // it - no local absolute paths, no tokens, no private project or model names. It is a test
-// now: walk everything package.json's `files` whitelist ships and refuse those strings.
+// now. The scope is the WHOLE repo, not just package.json's `files` whitelist:
 //
-// TWO lists, and the split is the whole point:
+//   * this repo is public, so everything in it is published, not only the tarball;
+//   * `package.json` SHIPS but is not in its own `files` list, so a whitelist-driven scan
+//     never looked at the one file every install reads first. Found 2026-09-19: its
+//     description carried a name that is also a local folder name. Repo-wide subsumes the
+//     tarball, so there is no second list to keep in sync.
+//
+// TWO needle lists, and the split is the whole point:
 //   * GENERIC ships. It holds shapes, not names: an absolute Windows user path, a bare drive
 //     letter. Useful to anyone who installs this package.
 //   * names that are private to ONE machine come from an OPTIONAL, UNVERSIONED file
 //     (.ship-deny.txt in the repo root, listed in .gitignore). Naming them inside a file that
 //     ships - even split into fragments, even "to forbid them" - publishes them. This block
-//     did exactly that once and had to be rewritten; see PUBLISHING.md.
+//     did exactly that once and had to be rewritten; see PUBLISHING.md. The deny file itself
+//     is the one file that must be skipped, because it is the list.
 // ---------------------------------------------------------------------------
 {
   const GENERIC = [
@@ -265,9 +278,9 @@ console.log('terminology: the settled names are pinned, because they regressed t
     ['C:' + '/Users', 'an absolute Windows user path'],
     ['H:' + '\\', 'a bare drive letter outside the documented placeholder'],
   ];
-  const DENY_FILE = path.join(ROOT, '.ship-deny.txt');
-  const extra = existsSync(DENY_FILE)
-    ? readFileSync(DENY_FILE, 'utf8').split(/\r?\n/)
+  const DENY_FILE = '.ship-deny.txt';
+  const extra = existsSync(path.join(ROOT, DENY_FILE))
+    ? readFileSync(path.join(ROOT, DENY_FILE), 'utf8').split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith('#'))
     : [];
@@ -281,35 +294,40 @@ console.log('terminology: the settled names are pinned, because they regressed t
   // needle, so this self-test never spells out a real name either.
   const synthetic = 'made-up-needle-for-the-self-test';
   const sample = 'text with ' + GENERIC[0][0] + '\\someone and ' + synthetic;
-  ok('the shipped-file leak detector really detects',
+  ok('the public-file leak detector really detects',
     leaks(sample, [...GENERIC, [synthetic, 'synthetic']]).length === 2,
     JSON.stringify(leaks(sample, [...GENERIC, [synthetic, 'synthetic']])));
 
-  const listShipped = (rel) => {
-    const abs = path.join(ROOT, rel);
-    let entries;
-    try { entries = readdirSync(abs, { withFileTypes: true }); } catch { return [rel]; }
-    const out = [];
-    for (const entry of entries) {
-      if (entry.name === 'node_modules' || entry.name === '.git') continue;
-      out.push(...listShipped(path.join(rel, entry.name)));
+  const SKIP = new Set(['node_modules', '.git', DENY_FILE]);
+  const TEXT_FILE = /\.(md|txt|js|mjs|cjs|ts|json|ya?ml|html|ps1|cmd|bat|sh)$/i;
+  const scanned = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP.has(entry.name)) continue;
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(abs);
+      else {
+        const rel = path.relative(ROOT, abs);
+        if (TEXT_FILE.test(rel)) scanned.push(rel);
+      }
     }
-    return out;
-  };
-  const TEXT_FILE = /\.(md|txt|js|mjs|cjs|ts|json|ya?ml|html|ps1|sh)$/i;
-  const scanned = (pkg.files || []).flatMap(listShipped).filter((rel) => TEXT_FILE.test(rel));
+  })(ROOT);
   const offenders = [];
   for (const rel of scanned) {
     for (const hit of leaks(readFileSync(path.join(ROOT, rel), 'utf8'))) {
       offenders.push(rel + ' has ' + hit);
     }
   }
-  ok('the shipped files name no machine-specific path, project or model',
+  ok('no public file names a machine-specific path, project or model',
     offenders.length === 0, offenders.slice(0, 4).join('; '));
-  // Over an empty list this would pass forever, so make sure it really walked the package.
+  // The regression test for the hole this rewrite closed: package.json ships but is not in
+  // its own `files` list, so a whitelist-driven scan silently skipped it.
+  ok('the leak scan covers package.json (it ships without being in its own files list)',
+    scanned.includes('package.json'), scanned.length + ' files scanned');
+  // Over an empty list this would pass forever, so make sure it really walked the repo.
   // The needle count is in the name so a missing .ship-deny.txt is visible, not silent.
-  ok('the shipped-file scan ran with ' + FORBIDDEN.length + ' needle(s) over ' + scanned.length + ' file(s)',
-    scanned.length >= 25, scanned.length + ' files');
+  ok('the leak scan ran with ' + FORBIDDEN.length + ' needle(s) over ' + scanned.length + ' file(s)',
+    scanned.length >= 50, scanned.length + ' files');
 }
 
 // ---------------------------------------------------------------------------
