@@ -389,6 +389,12 @@ GitHub Changelog [2026-07-08](https://github.blog/changelog/2026-07-08-npm-insta
 判斷方式看日誌：`/-/v1/done` 出現 **200**（＝你按了金鑰）＋ 最後 `PUT 202` ＋ `info ok`
 ＝ 成功，去等、不要重跑。
 
+**⭐ 連 tarball 的 URL 也會被快取住 404**（2026-09-19 實測）：發布**前**查過一次
+`…/-/chinese-script-policy-1.2.0.tgz`（當時當然 404），發布後同一個 URL **還是 404**——
+即使 `dist-tags.latest` 已經是 1.2.0、`npm view <pkg>@1.2.0 dist.shasum` 也拿得到。
+**加一個查詢字串就繞過快取**：`…tgz?v=1` 立刻回 **200**（實測）。要驗「tarball 真的在」時用這招，
+不要因為 404 就重發。
+
 **⭐ 發布後的驗收清單（四項都做才算驗完）**：
 
 1. `shasum` 與本機 `npm pack` 的產物一致（這次是 `237751f5277ba7546059f0a4438fa2faf2887887`）
