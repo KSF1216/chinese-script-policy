@@ -372,15 +372,31 @@ try {
   card(code.includes('window.__ModuleLoader__.load('),
     'the browser half must register itself through window.__ModuleLoader__.load')
   card(!/^[ \t]*(?:import|export)[ \t{]/m.test(code), 'the browser half must not use ESM syntax')
+  // React needs a Component base class for the card's error boundary (React has no hook
+  // equivalent), and the fake renderer below needs a setState that works in one pass.
+  class FakeComponent {
+    constructor(props) {
+      this.props = props || {};
+      this.state = {};
+    }
+    setState(patch) {
+      this.state = { ...this.state, ...(typeof patch === 'function' ? patch(this.state) : patch) };
+    }
+  }
   const React = {
     createElement: (type, props, ...children) => ({ type, props, children }),
     useState: (init) => [typeof init === 'function' ? init() : init, () => {}],
     useEffect: () => {},
     Fragment: 'fragment',
+    Component: FakeComponent,
   }
   const loadedModules = []
+  // The hardening layers report through both ctx.logger and console.error; capture both, so
+  // the test can assert that a failure is LOUD (a silent one is the failure mode being fixed).
+  const reported = []
+  const quietConsole = { ...console, error: (...args) => reported.push(args.map(String).join(' ')) }
   new Function('window', 'console', code)(
-    { __ModuleLoader__: { load: (definition) => loadedModules.push(definition) } }, console)
+    { __ModuleLoader__: { load: (definition) => loadedModules.push(definition) } }, quietConsole)
   card(loadedModules.length === 1, 'the browser half registered ' + loadedModules.length + ' module(s), want 1')
   const definition = loadedModules[0]
   card(Boolean(definition) && definition.id === 'chinese-script-policy',
@@ -441,14 +457,81 @@ try {
     ],
     useEffect: () => {},
     Fragment: 'fragment',
+    Component: FakeComponent,
   })
-  const renderCard = (forceOpen, settings) => {
+  // The header uses the host's chevron icon when the UI-primitives module resolves, and the
+  // text glyph ▾ otherwise. Both paths are pinned here; see CARD/done/NEXT-primitives-require.md
+  // for why the module really does resolve (it is a *virtual* module: the web frontend bundle
+  // provides it, exactly like react - there is no directory for it under node_modules).
+  const ICON_MARKER = 'chevron-icon-marker'
+  const ICON = function IconChevronDownOutline14() {
+    return { type: ICON_MARKER, props: {}, children: [] }
+  }
+  // A tiny renderer. createElement alone only builds inert nodes, so anything that has to
+  // actually RUN - function components, class components, and the card's error boundary -
+  // is invoked here. This is what makes the boundary testable without a browser: a throw
+  // inside the card becomes a getDerivedStateFromError call, exactly like React does it.
+  const render = (node) => {
+    if (node === null || node === undefined || typeof node !== 'object') return node
+    if (Array.isArray(node)) return node.map(render)
+    if (typeof node.type === 'function') {
+      // Real React moves children into props; the fake createElement keeps them apart, so a
+      // component would see `props = null` and crash. Rebuild the shape React promises.
+      const props = { ...(node.props || {}), children: node.children || [] }
+      const isClass = node.type.prototype && typeof node.type.prototype.render === 'function'
+      if (isClass) {
+        const instance = new node.type(props)
+        instance.props = props
+        try {
+          return render(instance.render())
+        } catch (error) {
+          if (typeof node.type.getDerivedStateFromError === 'function') {
+            instance.state = { ...instance.state, ...node.type.getDerivedStateFromError(error) }
+            // React calls componentDidCatch AFTER re-rendering; side effects (logging) live
+            // there, not in the static getDerivedStateFromError. Model both, or the card's
+            // "report the crash" path would never run in this test.
+            if (typeof instance.componentDidCatch === 'function') {
+              try { instance.componentDidCatch(error, { componentStack: '' }) } catch { /* logging must not mask the crash */ }
+            }
+            return render(instance.render())
+          }
+          throw error
+        }
+      }
+      return render(node.type(props))
+    }
+    return { type: node.type, props: node.props, children: (node.children || []).map(render) }
+  }
+  const renderCard = (forceOpen, settings, opts) => {
     settingsSnapshot.value = settings || {}
+    const wantIcon = Boolean(opts && opts.withIcon)
+    const broken = Boolean(opts && opts.brokenSnapshot)
     const captures = []
-    const ctx = { ...clientCtx, slots: { ...clientCtx.slots, register: (options, component) => { captures.push(component); return () => {} } } }
-    const mod = definition.factory((id) => (id === 'react' ? makeReact(forceOpen) : {}))
+    const ctx = {
+      ...clientCtx,
+      settingsScope: {
+        bind: () => ({
+          getSnapshot: () => {
+            if (broken) throw new Error('settings store unavailable')
+            return settingsSnapshot
+          },
+          set: async () => {},
+          unset: async () => {},
+        }),
+      },
+      slots: { ...clientCtx.slots, register: (options, component) => { captures.push(component); return () => {} } },
+      logger: { warn: (line) => reported.push(String(line)) },
+    }
+    const mod = definition.factory((id) => {
+      if (id === 'react') return makeReact(forceOpen)
+      if (wantIcon && id === '@deepseek-ai/dsh-client-ui-primitives') return { IconChevronDownOutline14: ICON }
+      return {}
+    })
     mod.apply(ctx)
-    return captures[0]()
+    const tree = render(captures[0]())
+    // The fake createElement always collects children into an array (React keeps a single
+    // positional child as-is), so the boundary's passthrough comes back as [element].
+    return Array.isArray(tree) && tree.length === 1 ? tree[0] : tree
   }
 
   // The fake createElement takes children verbatim, so a single array child stays
@@ -534,6 +617,41 @@ try {
     'the file-type part on the header line must follow the fileTypes setting')
   card(tree.includes('"name":"chinese-script-policy-mode"') || tree.includes('"chinese-script-policy-mode"'),
     'the mode radios are not grouped under the namespace')
+  // Last on purpose: the icon is remembered in a module-level variable, so once a render sees
+  // the primitives module every later render keeps the icon. (That is the shipped behaviour.)
+  card(!flatten(collapsed).some((node) => node.type === ICON) && JSON.stringify(collapsed).includes('\u25be'),
+    'without the UI primitives module the header must fall back to the text glyph')
+  card(flatten(renderCard(false, {}, { withIcon: true })).some((node) => node.type === ICON_MARKER),
+    'when the host provides the UI primitives module the header must render its chevron icon')
+
+  // The two hardening layers. Without them a broken host service costs the user the card -
+  // or, for an apply() throw, more than that - with nothing on screen explaining it.
+  const escaped = (() => {
+    let threw = null
+    const ctx = {
+      ...clientCtx,
+      locale: { bind: () => { throw new Error('locale service missing') }, register: () => () => {} },
+      logger: { warn: (line) => reported.push(String(line)) },
+    }
+    try {
+      browserPlugin.apply(ctx)
+    } catch (error) {
+      threw = error
+    }
+    return threw
+  })()
+  card(escaped === null,
+    'apply() must not let a broken host service escape (it would travel up the plugin tree): ' +
+    (escaped && escaped.message))
+  card(reported.some((line) => line.includes('not mounted')),
+    'a card that never mounted must say so out loud (ctx.logger or console), not fail silently')
+  const crashed = renderCard(false, {}, { brokenSnapshot: true })
+  card(JSON.stringify(crashed).includes(zh.crashTitle),
+    'a card that throws while rendering must show why, in its own place (boundary), not go blank')
+  card(JSON.stringify(crashed).includes('settings store unavailable'),
+    'the boundary must print the underlying error message')
+  card(reported.some((line) => line.includes('crashed while rendering')),
+    'the boundary must also report the crash to the log')
 } catch (e) {
   problems.push('browser half error: ' + e.message)
 }

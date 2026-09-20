@@ -539,8 +539,8 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
 | `NEXT-release-1.3.1.md` | 發布**下一個版本**（`package.json` 已是 1.3.0，但 **1.3.0 從未發布**——要直接發它，還是先 bump 成 1.3.1） | **blocked**（等使用者決定發哪個版號；`npm publish` 只能由人在終端機跑） |
-| `NEXT-primitives-require.md` | 那個選擇性的 `dsh-client-ui-primitives` require 是**死的**（沒有這個目錄、也不在宿主送出的 54 個 client 模組裡）→ 確認或直接拿掉 | **todo**（2026-09-20 由另一個 session 開卡；它**沒有改本 repo 的程式**） |
-| `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **todo**（同上；**沒有任何證據顯示它在漏**，是加固不是修 bug） |
+| `NEXT-primitives-require.md` | 那個選擇性的 `dsh-client-ui-primitives` require：**確認或直接拿掉** | **done**（2026-09-20 本 repo 的 session：**推翻「它是死的」**——它是**虛擬模組**，由 web frontend 的 bundle 提供，跟 `react` 一樣；兩條路（有模組／沒模組）現在都有測試釘住） |
+| `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **done**（2026-09-20：兩層都實作，測試 27 → 34 項，兩層各自故意弄壞驗證過） |
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
 
 **`PROJECT-chinese-script-policy.md`**（2026-09-20 新增）——**這個 repo 自己的卡**：`goal` 與四條完成標準。
