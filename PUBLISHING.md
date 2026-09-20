@@ -515,10 +515,20 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 |---|---|---|
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
+| `NEXT-release-1.3.1.md` | 發布這個版本（文件與守門類的 patch；版號還是 1.3.0） | **blocked**（等使用者決定要不要現在發；`npm publish` 只能由人在終端機跑） |
 
-這張卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
-若之後要接 `handoff-discipline` 的檢查器，專案 wrapper 的 `index` 要指到 `PUBLISHING.md`：
-用預設的 `README.md` 會把卡片判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
+> 這個 repo 目前只有 `NEXT-` 一種卡，所以 `tools\docs.mjs` 的 `cards` 仍是單一 glob。要多開 `OPEN-`（問題卡）或
+> `DECISION-`（決策卡）就把它列成陣列：`cards: ['NEXT-*.md', 'OPEN-*.md', 'DECISION-*.md']`（單一 glob 向後相容）。
+
+這些卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
+
+**已接 `handoff-discipline` 的檢查器（2026-09-20）**：`tools\docs.mjs`（薄 wrapper）＋ `npm test` 的 `test:docs`。
+
+- **`index` 必須指到 `PUBLISHING.md`**：用預設的 `README.md` 會把每張卡判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
+- **`foreignFiles` 是一份明列的例外名單**，比對方式是 `includes`（寫主檔名就夠）。目前列了五類：上游 OpenCC 的原始檔名（`TWPhrases.txt`、`TWVariantsPhrases.txt`、`JPShinjitaiCharacters.txt` 等，那是授權標示與出處，必須保留原樣）、跨專案證據（`NEXT-agents-md-pointer.md`、ComfyUI 的 `minimax_h3_latent_upscaler` 系列）、本紀律自己的工具（`docs-check.mjs`、`tools\verify.mjs`）、外部 repo 的文件（`plugins.json`、`contributing.md`）、npm 安裝後才產生的 shim（`tradzh.cmd`）；另有舊檔名的歷史對照（`tw-vocabulary.json`、`cn-vocabulary.json`）與 harness 的通用慣例檔名（`AGENTS.md`）。**沒有列進去的一律會被檢查**——把一個名字加進這份清單是一次刻意、可審查的動作。
+- **`tools\` 不在出貨白名單裡，所以 wrapper 會自我保護**：`PUBLISHING.md` 不存在時（＝從 tarball 安裝的環境）印「跳過」並 `exit 0`。否則消費者的 `npm test` 會找不到 `tools\docs.mjs` 而失敗——這個套件踩過同型別的洞（見下面 1.3.0 發布說明的「出貨掃描的洞」：`package.json` 會出貨，卻不在自己的白名單裡）。
+- 執行：`node tools\docs.mjs`（檢查，非零＝有問題）、`node tools\docs.mjs board`（計畫板）、`--json`（機器可讀）。
+- 接線時用預設設定跑出來的 **34 條 FAIL 全部查證為假陽性**，正確設定下為 **0**。
 
 > 這裡只列**這個 repo 自己的**卡。不屬於這個套件的工作項（例如全域記憶 `~/.dsh/AGENTS.md` 的指標行）
 > 不要放進來——那會讓發版文件混進無關的工作項。**卡片要放在它所屬的工作區**，不是放在人剛好坐著的地方。
