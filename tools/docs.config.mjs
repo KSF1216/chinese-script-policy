@@ -1,17 +1,41 @@
 // tools/docs.config.mjs - 這個 repo 的守門慣例（唯一手寫的檔案）
 //
-// `tools\docs.mjs` 與 `tools\docs-breaktest.mjs` 是**產生**的：
-//   node "$env:USERPROFILE\.dsh\skills\handoff-discipline\scripts\docs-init.mjs" --root "<本專案>"
+// `tools\docs.mjs` 是**產生**的（第二支入口已併入 `docs.mjs breaktest`）：
+//   node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\docs-init.mjs" --root "<本專案>"
 // 改了產生出來的那兩支，下一次重新產生就會被蓋掉。
 export const config = {
-  // 這個 repo 目前只有 NEXT 一種卡。要多開 OPEN-（問題卡）或 DECISION-（決策卡）
-  // 就把它列成陣列：cards: ['NEXT-*.md', 'OPEN-*.md', 'DECISION-*.md']。
-  cards: ['NEXT-*.md'],
+  // **狀態由資料夾表達**，所以 `CARD/*/` 涵蓋五格；平的 pattern 刻意不撈子目錄，
+  // 所以搬到一半會紅，不會靜默地什麼都沒載到。
+  //
+  // 八個卡種全部列出：這個 repo 現在**有專案卡**（＝宣告採用），而宣告採用就等於
+  // 宣告整套詞彙——缺哪一種，`kind-coverage` 會指名。載不到東西的 pattern 會印出來，不是 FAIL。
+  // `publishing` 是 2026-09-20 技能新增的卡種（專案層級的發布立場），本 repo 也用它。
+  cards: [
+    'CARD/*/NEXT-*.md', 'CARD/*/OPEN-*.md', 'CARD/*/DECISION-*.md',
+    'CARD/*/PROJECT-*.md', 'CARD/*/LESSON-*.md', 'CARD/*/REQ-*.md', 'CARD/*/TEST-*.md',
+    'CARD/*/PUBLISHING-*.md',
+  ],
   // 索引是 PUBLISHING.md，不是 README.md：README 是 npm 的對外門面（在 files 白名單裡），
   // 而卡片不會出貨——用預設的 README.md 會把每張卡判成 orphan，那不能靠改 README 解決。
   index: 'PUBLISHING.md',
-  // 這個 repo 沒有「規範／產物」的混雜問題：所有 .md 都必須每一條引用成立。
-  skipFiles: [],
+  // 歷史（done／dropped）不載入：front matter 已凍結、引用會腐化，檢查只會製造噪音。
+  // **用 status 排除，不是用路徑**——status 才是唯一來源。排除幾張會印在摘要行，不靜默。
+  ignoreStatuses: ['done', 'dropped'],
+  // 資料夾是 status 的**視圖**。搬檔由 `node tools\docs.mjs sync-folders` 做，人不手搬。
+  folderForStatus: {
+    todo: 'CARD/todo',
+    doing: 'CARD/doing',
+    blocked: 'CARD/blocked',
+    active: 'CARD/active',
+    done: 'CARD/done',
+    dropped: 'CARD/dropped',
+  },
+  // 除了歷史之外沒有「規範／產物」的混雜問題：所有 .md 都必須每一條引用成立。
+  // 歷史的引用天生會腐化——排除它，但**每一筆豁免都印成 note**，不靜默。
+  skipFiles: [
+    'CARD/done/**',
+    'CARD/dropped/**',
+  ],
   // 真的住在專案外、或被刻意保留原樣的檔名。比對方式是 `includes`，寫主檔名就夠。
   foreignFiles: [
     // 上游 OpenCC 的原始檔名：授權標示與出處，必須保留原樣（改了就是不誠實）
@@ -47,26 +71,24 @@ export const config = {
   plannedFiles: [],
 }
 
-// `node tools\docs-breaktest.mjs`：證明這個 repo 的守門真的會紅。
+// `node tools\docs.mjs breaktest`：證明這個 repo 的守門真的會紅。
 // 刻意**不**掛進 npm test——它會改動文件（然後還原），是手動的重新校準工具。
 export const breaktest = {
   cases: [
     {
+      // ⚠️ 錨點必須是**活卡**：歷史（done／dropped）不載入，所以指到歷史的案例
+      // 永遠不可能被 caught（它會回報「card is history」而不是靜默通過）。
+      // 搬家後只剩這張活卡，所以案例都指向它——它哪天結案，這些案例會紅，那時換卡。
       name: 'missing reference',
-      file: 'NEXT-file-type-guard.md',
-      old: '## 一、',
-      add: '\n備註：細節見 `tools\\does-not-exist.mjs`。\n',
+      file: 'NEXT-release-1.3.1.md',
+      pattern: /^# .*$/m,
+      add: '\n\n備註：細節見 `tools\\does-not-exist.mjs`。\n',
     },
-    { name: 'illegal status', file: 'NEXT-file-type-guard.md', pattern: /^status: [a-z]+$/m, new: 'status: wip' },
-    {
-      name: 'dependency on a missing card',
-      file: 'NEXT-file-type-guard.md',
-      pattern: /^id: next-file-type-guard$/m,
-      new: 'id: next-file-type-guard\ndepends_on: no-such-card',
-    },
+    { name: 'illegal status', file: 'NEXT-release-1.3.1.md', pattern: /^status: [a-z]+$/m, new: 'status: wip' },
+    { name: 'dependency on a missing card', file: 'NEXT-release-1.3.1.md', pattern: /^status: .*$/m, add: '\ndepends_on: no-such-card' },
     // `all: true`：索引裡可能合法地提到同一個名字不只一次，只拿掉第一處會讓卡片
     // 仍然「被提到」，案例就會因為錯的理由而通過。
-    { name: 'orphan card (index lost it)', file: 'PUBLISHING.md', old: 'NEXT-file-type-guard.md', new: 'NEXT-file-type-guard', all: true },
+    { name: 'orphan card (index lost it)', file: 'PUBLISHING.md', old: 'NEXT-release-1.3.1.md', new: 'NEXT-release-1.3.1', all: true },
     // `blocked` 是 2026-09-20 新增的狀態：它必須指名「被什麼擋住」，否則只是一句
     // 讓人無法接手的宣告。拿掉 blocked_by 就必須紅燈。
     { name: 'blocked card without blocked_by', file: 'NEXT-release-1.3.1.md', pattern: /^blocked_by: .*$/m, new: '' },

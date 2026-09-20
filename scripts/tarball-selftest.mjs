@@ -27,7 +27,7 @@ const ROOT = join(here, '..');
 // Files that must never reach a user: maintainer notes, private name lists, hand-off cards and
 // the guard's own hand-written config. `files` is a whitelist, so this is a second opinion -
 // the kind that catches a future `"tools"` (whole directory) entry sweeping them in.
-const MUST_NOT_SHIP = ['.ship-deny.txt', 'PUBLISHING.md', 'tools/docs.config.mjs', 'tools/docs-breaktest.mjs'];
+const MUST_NOT_SHIP = ['.ship-deny.txt', 'PUBLISHING.md', 'tools/docs.config.mjs'];
 const CARD_PREFIX = 'NEXT-';
 
 let failures = 0;

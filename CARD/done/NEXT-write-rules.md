@@ -6,6 +6,7 @@ acceptance: |
   npm run audit
   node scripts/tradzh.js SKILL.md references/encoding.md README.md
 updated: 2026-09-19
+verified_at: 2026-09-20T03:21Z
 ---
 
 # 下一件事：把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區

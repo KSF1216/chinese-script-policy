@@ -7,6 +7,7 @@ acceptance: |
   npm test
   npm run audit
 updated: 2026-09-19
+verified_at: 2026-09-20T06:38Z
 ---
 
 # Windows 腳本檔類型的寫入守衛（`.ps1` 純 ASCII、`.cmd` 純 ASCII ＋ CRLF）

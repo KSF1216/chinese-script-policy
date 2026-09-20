@@ -532,23 +532,31 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 （57 個，`VALID_CHINESE_TOO`）。若 OpenCC 之後新增了新字體，而它同時是合法中文，
 那個清單要手動補——這是刻意的，它是一份被審核過的名單，不是自動推導出來的。
 
-### 待辦卡（`handoff-discipline` 格式，未出貨）
+### 待辦卡（`project-discipline` 格式，未出貨）
 
 | 卡 | 內容 | 狀態 |
 |---|---|---|
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
 | `NEXT-release-1.3.1.md` | 發布**下一個版本**（`package.json` 已是 1.3.0，但 **1.3.0 從未發布**——要直接發它，還是先 bump 成 1.3.1） | **blocked**（等使用者決定發哪個版號；`npm publish` 只能由人在終端機跑） |
+| `NEXT-primitives-require.md` | 那個選擇性的 `dsh-client-ui-primitives` require 是**死的**（沒有這個目錄、也不在宿主送出的 54 個 client 模組裡）→ 確認或直接拿掉 | **todo**（2026-09-20 由另一個 session 開卡；它**沒有改本 repo 的程式**） |
+| `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **todo**（同上；**沒有任何證據顯示它在漏**，是加固不是修 bug） |
+| `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
 
-> 這個 repo 目前只有 `NEXT-` 一種卡，所以 `tools\docs.mjs` 的 `cards` 仍是單一 glob。要多開 `OPEN-`（問題卡）或
-> `DECISION-`（決策卡）就把它列成陣列：`cards: ['NEXT-*.md', 'OPEN-*.md', 'DECISION-*.md']`（單一 glob 向後相容）。
+**`PROJECT-chinese-script-policy.md`**（2026-09-20 新增）——**這個 repo 自己的卡**：`goal` 與四條完成標準。
+**它同時是「本 repo 有在用這套紀律」的宣告**：有它之後，`tools\docs.config.mjs` 的 `cards` 就必須涵蓋
+**每一個**卡種（`kind-coverage`），所以那一行現在是七個 pattern。
+`goal` 由 AIPMSkills 工作區的 agent 代擬，**還沒有經過本 repo 自己的 session 確認**——要改就直接改那一行。
+
+> 這個 repo 以前只有 `NEXT-` 一種卡，所以 `cards` 曾是單一 glob。現在是七個 pattern 的陣列
+> （`CARD/*/<KIND>-*.md`）：宣告採用就等於宣告整套詞彙，載不到東西的 pattern 會印出來、不是 FAIL。
 
 這些卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
 
-**已接 `handoff-discipline` 的檢查器（2026-09-20）**：`tools\docs.mjs`（**產生**的薄 wrapper）＋ `npm test` 的 `test:docs`。
+**已接 `project-discipline` 的檢查器（2026-09-20）**：`tools\docs.mjs`（**產生**的薄 wrapper）＋ `npm test` 的 `test:docs`。
 慣例（卡片 glob、索引、例外名單、破壞測試案例）住在唯一手寫的 `tools\docs.config.mjs`；兩支產生檔用
-`node "$env:USERPROFILE\.dsh\skills\handoff-discipline\scripts\docs-init.mjs" --root "<本專案>"` 重新產生。
-`tools\docs-breaktest.mjs` 是手動的破壞測試（會改動文件再還原），**刻意不掛進 `npm test`**。
+`node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\docs-init.mjs" --root "<本專案>"` 重新產生。
+`node tools\docs.mjs breaktest` 是手動的破壞測試（會改動文件再還原），**刻意不掛進 `npm test`**。
 
 - **`index` 必須指到 `PUBLISHING.md`**：用預設的 `README.md` 會把每張卡判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
 - **`foreignFiles` 是一份明列的例外名單**，比對方式是 `includes`（寫主檔名就夠）。目前列了五類：上游 OpenCC 的原始檔名（`TWPhrases.txt`、`TWVariantsPhrases.txt`、`JPShinjitaiCharacters.txt` 等，那是授權標示與出處，必須保留原樣）、跨專案證據（`NEXT-agents-md-pointer.md`、ComfyUI 的 `minimax_h3_latent_upscaler` 系列）、本紀律自己的工具（`docs-check.mjs`、`tools\verify.mjs`）、外部 repo 的文件（`plugins.json`、`contributing.md`）、npm 安裝後才產生的 shim（`tradzh.cmd`）；另有舊檔名的歷史對照（`tw-vocabulary.json`、`cn-vocabulary.json`）與 harness 的通用慣例檔名（`AGENTS.md`）。**沒有列進去的一律會被檢查**——把一個名字加進這份清單是一次刻意、可審查的動作。

@@ -3,6 +3,7 @@ id: next-release-1.3.1
 status: blocked
 blocked_by: 使用者——(1) 決定要發哪一個版號（見下面兩個選項：直接發已備好的 1.3.0，或先 bump 成 1.3.1 一起發）；(2) 最後那一步 npm publish 必須由你在自己的終端機跑（非 TTY 環境會立刻 EOTP 失敗，而且印出來的網址會被遮蔽成 ***）
 updated: 2026-09-20
+blocked_since: 2026-09-20T09:43Z
 acceptance: |
   npm test
   npm run test:tarball
