@@ -595,7 +595,8 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 - **出貨清單漏了兩支會被 `npm run` 用到的檔案**（2026-09-20 用 `test:tarball` 第一次跑就抓到）：
   `cantonese-allow.json`（`test:repo` 的粵語軸要讀它，沒出貨 → 135 條假 FAIL）與
   `tools\docs.mjs`（`test:docs` 的入口，沒出貨 → `MODULE_NOT_FOUND`）。
-  兩支都是「checkout 裡永遠正常、使用者拿到的那份會壞」的類型，現在都出貨（**58 → 61 檔**），
+  兩支都是「checkout 裡永遠正常、使用者拿到的那份會壞」的類型，現在都出貨（**58 → 61 檔**：
+  加上 `cantonese-allow.json`、`tools\docs.mjs`，以及新的 `scripts\tarball-selftest.mjs`），
   並各有一條守門：`scripts\tarball-selftest.mjs`（真的解開 tarball 跑一次 `npm test`）＋
   `test:api` 的靜態檢查（每個 `npm run` 入口點都在 `files` 白名單裡）。
 
