@@ -22,6 +22,7 @@
 ```powershell
 cd "$env:USERPROFILE\.dsh\skills\chinese-script-policy"
 npm test                # 三個檢查指令的回歸 + hook + 用真實註冊表列出並載入技能 + 網頁比對 + 代理的 HTTP 邊界
+npm run test:tarball    # 打包 → 解開 → 在解開的 package 裡再跑一次 npm test（＝使用者真正拿到的那份）
 npm run audit           # Big5／GBK 字表稽核（抓「標準繁體字被當成簡體」）
 npm run check           # repo 自己也要是乾淨繁體
 npm run check:written   # repo 自己也不含粵語口語標記（靠 cantonese-allow.json 放行文件）
@@ -32,7 +33,8 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 
 | 指令 | 防的是什麼 |
 |---|---|
-| `npm test` | 轉換選錯字、粵語／日文偵測過度或不足、**hook 壞掉（它壞掉是無聲的）**、外掛註冊欄位漏掉（`source` 就是這樣抓到的）、**CLI 旗標接線**（`test:cli` 跑文件上的每一個配方）、網頁與 CLI 不同步、**代理的輸出邊界**（非串流、`tool_calls` 不動、原生 `/completion` 形狀、乾淨回應逐位元組不變）、**repo 自己的腳本檔位元組規則**（`.ps1` 純 ASCII；`.cmd`／`.bat` 純 ASCII ＋ CRLF）、**最後還會跑 `test:repo`**：三軸檢查這份 repo 自己 |
+| `npm test` | 轉換選錯字、粵語／日文偵測過度或不足、**hook 壞掉（它壞掉是無聲的）**、外掛註冊欄位漏掉（`source` 就是這樣抓到的）、**CLI 旗標接線**（`test:cli` 跑文件上的每一個配方）、網頁與 CLI 不同步、**代理的輸出邊界**（非串流、`tool_calls` 不動、原生 `/completion` 形狀、乾淨回應逐位元組不變）、**repo 自己的腳本檔位元組規則**（`.ps1` 純 ASCII；`.cmd`／`.bat` 純 ASCII ＋ CRLF）、**每個 `npm run` 會用到的檔案都真的在白名單裡**、**最後還會跑 `test:repo`**：三軸檢查這份 repo 自己 |
+| `npm run test:tarball` | **「checkout 會過、使用者拿到的那份不會」**：把 tarball 解開後在裡面跑 `npm test`。2026-09-20 第一次跑就抓到兩個真的壞掉的地方（`cantonese-allow.json` 沒出貨 → 粵語軸失敗；`tools/docs.mjs` 沒出貨 → `test:docs` 會 `MODULE_NOT_FOUND`） |
 | `npm run audit` | 字表重新產生後又把 `峰 床 痴 秘 灶 粽` 之類的標準繁體字當成簡體 |
 | `npm run check` | 文件或程式碼裡混進簡體（刻意的示範要標 `simplified-example`） |
 | `npm run check:written` | 文件或程式碼裡混進粵語口語（刻意的示範列在 `cantonese-allow.json`） |
@@ -40,13 +42,21 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 | `npm run build:web` | 網頁版跟 CLI 不同步（改了字表卻忘了重新產生 `dist/tradzh.html`） |
 | `npm pack --dry-run` | 少包檔案（使用者裝了不能用）、多包檔案（隱私或肥檔） |
 
-七個都過才發布。
+八個都過才發布。
 
-> **打包清單有兩處容易漏**（`package.json` 的 `files` 是白名單，沒列到就不會出貨）：
+> **打包清單有三處容易漏**（`package.json` 的 `files` 是白名單，沒列到就不會出貨）：
 > - **`lib/client.js`**：DSH 的設定卡（瀏覽器端）。漏了它，外掛本身照樣能擋寫入，
 >   但 GUI 的「Plugin configuration」永遠不會出現那張卡，而且**不會有任何錯誤訊息**。
 >   它同時是 `exports["./client"]` 的目標，`dsh.client` 那段也在 `package.json`。
 > - **`dist/tradzh.html`**：離線網頁版（曾經漏掉，等於沒有人能下載現成的一份）。
+> - **執行 `npm run` 會用到的檔案**（2026-09-20 補）：`tools/docs.mjs`（`test:docs` 的入口，
+>   沒出貨就是 `MODULE_NOT_FOUND`）與 `cantonese-allow.json`（`test:repo` 的粵語軸要讀它，
+>   沒出貨就是 135 條假 FAIL）。**`npm test` 在 checkout 裡永遠不會發現這種漏**——checkout 什麼檔案都有；
+>   `npm run test:tarball` 就是為了這個而存在的，`test:api` 另外有一條靜態守門盯著「每個入口點都在白名單裡」。
+>
+> ⚠️ **`tools/docs.mjs` 出貨、但 `tools/docs.config.mjs` 刻意不出貨**：wrapper 找不到慣例檔時
+> 會印「skipped」並 exit 0，這樣使用者的 `npm test` 不會平白壞掉；而守門在維護者的 checkout 裡照常運作。
+> 兩半都有測試（`scripts/tarball-selftest.mjs` 同時斷言「檔案在」與「慣例檔不在」）。
 
 > **`test:repo` 是 2026-09 補上的洞**：`npm test` 以前**不含**那三項 repo 自我檢查，所以文件／程式碼
 > 引用簡體或日文字例卻忘了標 `check-ok` 時，**沒有任何測試會發現**——實際上就這樣壞了一陣子
@@ -224,7 +234,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
-| npm（待發布） | **`1.3.0` 已備好**（2026-09-19）：版號已 bump、`dist/tradzh.html` 已重建（頁尾印 `v1.3.0`）、`npm test`／`npm run audit`／`npm pack --dry-run` 全綠。`npm publish` **由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`）；發布後才補 tag `v1.3.0` 與 GitHub Release（body 取 §6 的 1.3.0 段） |
+| npm（待發布） | **`1.3.0` 已備好、尚未發布**（2026-09-20 12:5x 香港時間實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`，`time` 也沒有 1.3.0——**1.3.0 從來沒發過**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.0`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**61 檔**）全綠。**要發 1.3.0 還是先 bump 成 1.3.1，見 `NEXT-release-1.3.1.md`**（那裡是這個決定的唯一出處）；`npm publish` 由使用者在自己的終端機跑（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.0 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
@@ -429,6 +439,8 @@ GitHub Changelog [2026-07-08](https://github.blog/changelog/2026-07-08-npm-insta
    把名字寫進會出貨的檔案裡，就是把它公開，哪怕只是「為了禁止它」）
 3. **裝一份下來跑它自己的測試**：`npm i chinese-script-policy@1.0.0` →
    `node node_modules/chinese-script-policy/scripts/selftest.js` 要 exit 0
+   （**這是最低標**。要驗完整的一份，用 `npm run test:tarball`：它把 tarball 解開後在裡面跑
+   整套 `npm test`——`scripts\selftest.js` 只涵蓋核心轉換，涵蓋不到「有沒有檔案忘了出貨」）
 4. `bin` 可用（`node_modules\.bin\tradzh.cmd --help`）＋ 真的轉一次字
 
 **⚠️ PowerShell 不支援 `<` 重導向**（`The '<' operator is reserved for future use.`）：
@@ -515,18 +527,21 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 |---|---|---|
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
-| `NEXT-release-1.3.1.md` | 發布這個版本（文件與守門類的 patch；版號還是 1.3.0） | **blocked**（等使用者決定要不要現在發；`npm publish` 只能由人在終端機跑） |
+| `NEXT-release-1.3.1.md` | 發布**下一個版本**（`package.json` 已是 1.3.0，但 **1.3.0 從未發布**——要直接發它，還是先 bump 成 1.3.1） | **blocked**（等使用者決定發哪個版號；`npm publish` 只能由人在終端機跑） |
 
 > 這個 repo 目前只有 `NEXT-` 一種卡，所以 `tools\docs.mjs` 的 `cards` 仍是單一 glob。要多開 `OPEN-`（問題卡）或
 > `DECISION-`（決策卡）就把它列成陣列：`cards: ['NEXT-*.md', 'OPEN-*.md', 'DECISION-*.md']`（單一 glob 向後相容）。
 
 這些卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
 
-**已接 `handoff-discipline` 的檢查器（2026-09-20）**：`tools\docs.mjs`（薄 wrapper）＋ `npm test` 的 `test:docs`。
+**已接 `handoff-discipline` 的檢查器（2026-09-20）**：`tools\docs.mjs`（**產生**的薄 wrapper）＋ `npm test` 的 `test:docs`。
+慣例（卡片 glob、索引、例外名單、破壞測試案例）住在唯一手寫的 `tools\docs.config.mjs`；兩支產生檔用
+`node "$env:USERPROFILE\.dsh\skills\handoff-discipline\scripts\docs-init.mjs" --root "<本專案>"` 重新產生。
+`tools\docs-breaktest.mjs` 是手動的破壞測試（會改動文件再還原），**刻意不掛進 `npm test`**。
 
 - **`index` 必須指到 `PUBLISHING.md`**：用預設的 `README.md` 會把每張卡判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
 - **`foreignFiles` 是一份明列的例外名單**，比對方式是 `includes`（寫主檔名就夠）。目前列了五類：上游 OpenCC 的原始檔名（`TWPhrases.txt`、`TWVariantsPhrases.txt`、`JPShinjitaiCharacters.txt` 等，那是授權標示與出處，必須保留原樣）、跨專案證據（`NEXT-agents-md-pointer.md`、ComfyUI 的 `minimax_h3_latent_upscaler` 系列）、本紀律自己的工具（`docs-check.mjs`、`tools\verify.mjs`）、外部 repo 的文件（`plugins.json`、`contributing.md`）、npm 安裝後才產生的 shim（`tradzh.cmd`）；另有舊檔名的歷史對照（`tw-vocabulary.json`、`cn-vocabulary.json`）與 harness 的通用慣例檔名（`AGENTS.md`）。**沒有列進去的一律會被檢查**——把一個名字加進這份清單是一次刻意、可審查的動作。
-- **`tools\` 不在出貨白名單裡，所以 wrapper 會自我保護**：`PUBLISHING.md` 不存在時（＝從 tarball 安裝的環境）印「跳過」並 `exit 0`。否則消費者的 `npm test` 會找不到 `tools\docs.mjs` 而失敗——這個套件踩過同型別的洞（見下面 1.3.0 發布說明的「出貨掃描的洞」：`package.json` 會出貨，卻不在自己的白名單裡）。
+- **`tools\docs.mjs` 出貨（2026-09-20 起）、`tools\docs.config.mjs` 刻意不出貨**：wrapper 是用 `files` 裡的單一檔案路徑出貨的，找到不到慣例檔時印「skipped」並 `exit 0`（使用者的 `npm test` 不會壞，但仍然**說出聲**「什麼都沒檢查」）。原本的版本用「`PUBLISHING.md` 不存在」當判斷，可是 `tools\` 根本沒出貨，所以那段自我保護**到不了**——`npm test` 會先以 `MODULE_NOT_FOUND` 死掉。現在兩半都有測試（見 §1 的 `test:tarball`）。
 - 執行：`node tools\docs.mjs`（檢查，非零＝有問題）、`node tools\docs.mjs board`（計畫板）、`--json`（機器可讀）。
 - 接線時用預設設定跑出來的 **34 條 FAIL 全部查證為假陽性**，正確設定下為 **0**。
 
@@ -566,15 +581,26 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
   現在改成掃 **repo 裡所有文字檔**（排除 `node_modules`／`.git`／`.ship-deny.txt`），
   並加一條「leak scan covers package.json」的迴歸測試釘住這個洞。
   npm description 也順手把那句改成 `an LLM output guard`（252／255 字，意思不變）。
+- **出貨清單漏了兩支會被 `npm run` 用到的檔案**（2026-09-20 用 `test:tarball` 第一次跑就抓到）：
+  `cantonese-allow.json`（`test:repo` 的粵語軸要讀它，沒出貨 → 135 條假 FAIL）與
+  `tools\docs.mjs`（`test:docs` 的入口，沒出貨 → `MODULE_NOT_FOUND`）。
+  兩支都是「checkout 裡永遠正常、使用者拿到的那份會壞」的類型，現在都出貨（**58 → 61 檔**），
+  並各有一條守門：`scripts\tarball-selftest.mjs`（真的解開 tarball 跑一次 `npm test`）＋
+  `test:api` 的靜態檢查（每個 `npm run` 入口點都在 `files` 白名單裡）。
 
 **測試**
-- `test:api` 61 → 68 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
+- `test:api` 61 → 69 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
   讀**原始位元組**確認每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，
   並先證明兩個偵測器真的會紅（讀成文字就看不出差別，所以這條一定要在位元組層）。
   **它第一次跑就抓到真的違規**（就是上面那個 `build-codepage.ps1`）——不是合成的假案例。
-  另外新增兩條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、
+  另外新增三條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、
   `PUBLISHING.md` 的 npm 描述範例必須與 `package.json` 的 `description` **逐字相同**
-  （實測那份範例少了最後一句，而當時沒有任何測試看得出來）。
+  （實測那份範例少了最後一句，而當時沒有任何測試看得出來）、
+  每個 `npm run` 入口點都必須在白名單裡（上面那兩支漏掉的檔案）。
+- **新增 `npm run test:tarball`**（`scripts\tarball-selftest.mjs`）：打包 → 解開 → 在解開的
+  package 裡再跑一次 `npm test`，並斷言 tarball 裡沒有維護者檔案（`PUBLISHING.md`、卡片、
+  `.ship-deny.txt`、`tools\docs.config.mjs`）。**它第一次跑就抓到真的壞掉的東西**。
+  刻意不掛進 `npm test`（會打包＋解開，約 15 秒），放在發布前清單裡（§1）。
 - `test:plugin` 的設定卡 24 → 27 項：`inspectFileType` 的 14 個行為案例（純 ASCII 放行、
   `.md`／`read` 不觸發、`.cmd` 給 `block` 仍只警告、CRLF 放行而純 LF 觸發）、
   真的 cordis waterfall 上的 3 個掛載案例，以及設定卡的第四組單選與**折疊標題行**跟著 `fileTypes` 變。

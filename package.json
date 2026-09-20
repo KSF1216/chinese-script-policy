@@ -35,12 +35,14 @@
     "cordis.patch.yml",
     "SKILL.md",
     ".tradzhignore",
+    "cantonese-allow.json",
     "hooks.json",
     "scripts",
     "references",
     "examples",
     "third_party",
     "dist/tradzh.html",
+    "tools/docs.mjs",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md",
     "README.md"
@@ -77,6 +79,7 @@
     "build:jp": "node scripts/build-jp.js",
     "build:codepage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-codepage.ps1",
     "test:web": "node scripts/web-selftest.mjs",
+    "test:tarball": "node scripts/tarball-selftest.mjs",
     "stats": "node scripts/stats.js",
     "llm-guard-proxy": "node examples/llm-proxy/llm-guard-proxy.mjs"
   },

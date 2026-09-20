@@ -75,6 +75,34 @@ console.log('packaging contract (the exports map)');
   ok('files whitelist ships scripts/', pkg.files.includes('scripts'));
   ok('files whitelist ships examples/', pkg.files.includes('examples'));
   ok('zero runtime dependencies', Object.keys(pkg.dependencies || {}).length === 0);
+
+  // Every file a package.json script tells you to run must be IN the tarball - otherwise
+  // `npm test` works in a checkout (which has every file) and dies in the package a user
+  // gets. Found 2026-09-20 by unpacking the tarball: `test:docs` pointed at tools/docs.mjs,
+  // which was not in `files` at all, and `test:repo` needed cantonese-allow.json, which was
+  // not either. scripts/tarball-selftest.mjs is the full check (it runs the suite there);
+  // this is the cheap static half that stays in the dev loop.
+  const shipped = new Set();
+  const addShipped = (rel) => {
+    const abs = path.join(ROOT, rel);
+    let entries;
+    try { entries = readdirSync(abs, { withFileTypes: true }); } catch { shipped.add(rel.replace(/\\/g, '/')); return; }
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === '.git') continue;
+      addShipped(path.join(rel, entry.name));
+    }
+  };
+  for (const rel of pkg.files || []) addShipped(rel);
+  const entryPoints = new Set();
+  for (const [name, command] of Object.entries(pkg.scripts || {})) {
+    for (const match of String(command).matchAll(/(?:\bnode\s+|-File\s+)([^\s"']+)/g)) {
+      const target = match[1].replace(/\\/g, '/').replace(/^\.\//, '');
+      if (!target.startsWith('-') && /\.(m?js|cjs|ps1)$/i.test(target)) entryPoints.add(target);
+    }
+  }
+  const missing = [...entryPoints].filter((rel) => !shipped.has(rel));
+  ok('every script npm may run is shipped (' + entryPoints.size + ' entry point(s))',
+    missing.length === 0 && entryPoints.size >= 5, missing.join(', '));
 }
 
 console.log('ESM shim (named exports are invisible through a UMD wrapper)');
@@ -231,8 +259,20 @@ console.log('terminology: the settled names are pinned, because they regressed t
   // exposure points). Found 2026-09-19: the block had drifted - it was missing the last
   // sentence the real field carried - and nothing could see it, because every other check
   // reads package.json only. Pin the two together.
-  ok('the PUBLISHING.md npm-description block is the real description, verbatim',
-    readFileSync(path.join(ROOT, 'PUBLISHING.md'), 'utf8').includes(pkg.description));
+  //
+  // PUBLISHING.md is NOT shipped (it is maintainer-only), so this check has to skip in a
+  // tarball install instead of throwing: `npm test` from an unpacked package used to work
+  // and a readFileSync on a missing file turned it into ENOENT exit 1 (found 2026-09-20 by
+  // unpacking the package and running its own suite). Skipping is announced in the label -
+  // a silent pass would be worse than no check.
+  const publishing = path.join(ROOT, 'PUBLISHING.md');
+  if (existsSync(publishing)) {
+    ok('the PUBLISHING.md npm-description block is the real description, verbatim',
+      readFileSync(publishing, 'utf8').includes(pkg.description));
+  } else {
+    ok('the PUBLISHING.md npm-description block was NOT checked (no PUBLISHING.md: tarball install, not a checkout)',
+      true);
+  }
 
   // Front ends: ONE switch, same name, in all four places that expose it.
   const page = readFileSync(path.join(ROOT, 'scripts', 'web-page.js'), 'utf8');
