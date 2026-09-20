@@ -274,6 +274,75 @@ console.log('terminology: the settled names are pinned, because they regressed t
       true);
   }
 
+  // ---------------------------------------------------------------------------
+  // The headline table sizes are written into prose in a dozen files, and until 2026-09-20
+  // nothing compared them to the data: rebuild a table and every document keeps the old
+  // number (PUBLISHING.md section 4 asks a human to keep a map of "number -> files").
+  //
+  // Two rules keep this from becoming a false-positive machine:
+  //   * the values are DERIVED from the data files - never copied from the prose. A copy
+  //     would satisfy itself and pass forever, which is the trap this repo already paid for
+  //     once (a test that could not fail).
+  //   * only numbers >= 100 are pinned: searching prose for "3" or "17" matches dates, line
+  //     numbers and other counts, so the small Cantonese counts stay a human checklist item.
+  // Numbers are compared with the thousands separator removed, because the prose uses both
+  // forms (1,002 and 1002).
+  // ---------------------------------------------------------------------------
+  {
+    const loadTable = (name) => JSON.parse(readFileSync(path.join(ROOT, 'scripts', name), 'utf8'));
+    const keys = (value) => Object.keys(value || {}).length;
+    // The union is computed by the shipped code itself (scripts/lib.js), not re-derived here:
+    // two implementations of the same set would drift, and the point is to check the DOCS.
+    const libApi = require(path.join(ROOT, 'scripts', 'lib.js'));
+    const jp = loadTable('japanese-only.json');
+    const cantonese = loadTable('cantonese-only.json');
+    const rows = [
+      { what: 'simplified -> traditional phrases', value: keys(loadTable('simplified-to-traditional.json').phrase),
+        files: ['SKILL.md', 'THIRD-PARTY-NOTICES.md', 'references/cli.md', 'references/conversion.md',
+          'references/data-files.md', 'references/encoding.md', 'scripts/core.js', 'scripts/selftest.js', 'scripts/tradzh.js'] },
+      { what: 'knownHanzi union', value: libApi.knownHanzi().size,
+        files: ['references/encoding.md', 'scripts/core.js'] },
+      { what: 'wording preference (tc) phrases', value: keys(loadTable('tc-vocabulary.json').phrase),
+        files: ['SKILL.md', 'references/cli.md', 'references/conversion.md', 'references/data-files.md', 'scripts/tradzh.js'] },
+      { what: 'wording preference (sc) phrases', value: keys(loadTable('sc-vocabulary.json').phrase),
+        files: ['SKILL.md', 'THIRD-PARTY-NOTICES.md', 'references/cli.md', 'references/conversion.md',
+          'references/data-files.md', 'scripts/tradzh.js'] },
+      { what: 'compatibility ideographs', value: keys(loadTable('cjk-compatibility.json').map),
+        files: ['SKILL.md', 'THIRD-PARTY-NOTICES.md', 'references/data-files.md', 'references/encoding.md'] },
+      { what: 'japanese-only characters', value: (jp.chars || []).length,
+        files: ['README.md', 'SKILL.md', 'references/cli.md', 'references/data-files.md', 'references/japanese.md'] },
+      { what: 'japanese-only phrases', value: (jp.phrases || []).length,
+        files: ['README.md', 'SKILL.md', 'references/cli.md', 'references/data-files.md', 'references/japanese.md'] },
+      { what: 'japanese-only conversion map', value: keys(jp.map),
+        files: ['SKILL.md', 'THIRD-PARTY-NOTICES.md', 'references/data-files.md', 'references/japanese.md'] },
+      { what: 'simplified-only glyphs', value: loadTable('simplified-only.json').length,
+        files: ['README.md', 'SKILL.md', 'references/cli.md', 'references/data-files.md',
+          'references/glyph-table.md', 'references/japanese.md'] },
+      { what: 'traditional-only glyphs', value: loadTable('traditional-only.json').length,
+        files: ['README.md', 'SKILL.md', 'references/data-files.md'] },
+    ];
+    const cache = new Map();
+    const read = (rel) => {
+      if (!cache.has(rel)) {
+        cache.set(rel, readFileSync(path.join(ROOT, rel), 'utf8').replace(/(\d),(\d)/g, '$1$2'));
+      }
+      return cache.get(rel);
+    };
+    for (const row of rows) {
+      const value = row.value;
+      const missing = row.files.filter((rel) => !read(rel).includes(String(value)));
+      ok('the documents state the current ' + row.what + ' count (' + value + ')',
+        missing.length === 0, missing.length ? 'not found in: ' + missing.join(', ') : '');
+    }
+    // The Cantonese counts are small enough that a prose search proves nothing, but the data
+    // itself is still worth pinning: these numbers are the ones PUBLISHING.md lists by hand.
+    ok('the cantonese table still has the shape the documents describe (' +
+      (cantonese.chars || []).length + ' chars, ' + (cantonese.phrases || []).length + ' phrases, ' +
+      (cantonese.weakPhrases || []).length + ' weak, ' + (cantonese.patterns || []).length + ' patterns)',
+      (cantonese.chars || []).length === 17 && (cantonese.phrases || []).length === 30 &&
+      (cantonese.weakPhrases || []).length === 15 && (cantonese.patterns || []).length === 3);
+  }
+
   // Front ends: ONE switch, same name, in all four places that expose it.
   const page = readFileSync(path.join(ROOT, 'scripts', 'web-page.js'), 'utf8');
   ok('the offline page has exactly one wording checkbox',

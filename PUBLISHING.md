@@ -92,21 +92,32 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 
 **⚠️ 筆數有寫死在文件與程式裡，改完要一起更新**（這些數字不會自動同步，改了表很容易漏）：
 
-> 2026-09 README 瘦身（24,654 → 11,142 字元）之後，**多數細節搬到 `references/`**，
-> 這張表也跟著更新了。**判斷原則**：`scripts/*.js` 與 `references/*.md` 是權威，
-> `README.md` 只留四軸的招牌數字（`2,637`、`367`／`123`）。
+> 2026-09 README 瘦身（24,654 → 11,142 字元）之後，**多數細節搬到 `references/`**。
+> **判斷原則**：`scripts/*.js` 與 `references/*.md` 是權威，`README.md` 只留招牌數字（`2,637`、`367`／`123`）。
+>
+> **2026-09-20 起，下表的大數字由 `npm test` 的 `test:api` 逐條釘住**：值**從資料檔算出來**
+> （不是抄文件——抄文件會自我滿足、永遠不會紅），再要求下表列出的**每個**檔案都出現那個數字。
+> 所以「重建字表之後文件還寫舊數字」會在 `npm test` 當場紅燈。兩種壞法都故意驗證過：
+> 把 `README.md` 的 `2,637` 改成 `2,636` → 紅；把 `japanese-only.json` 砍一個詞（123 → 122）→ 紅並列出全部五個檔案。
+>
+> **小於 100 的數字，以及 `10`／`54`／`127` 這種由別的檔案算出來的，不列入機檢**：用字串搜尋「3」或「17」
+> 會撞到日期與其他計數，那種檢查只會變成誤報機器。它們仍靠這張表人工複查；另外有一條測試釘住
+> **粵語表本身的形狀**（17 字／30 詞／15 弱／3 樣式），資料被動過時至少會有人知道。
 
-| 數字 | 出現的地方 |
+| 數字 | 出現的地方（`test:api` 逐檔驗證；下面這幾列就是它實際檢查的完整清單） |
 |---|---|
-| `49,257`（簡→繁詞組） | `SKILL.md`、`references/conversion.md`（×2）、`references/encoding.md`、`references/cli.md`、`references/data-files.md`、`scripts/core.js`、`scripts/selftest.js`、`scripts/tradzh.js` |
+| `49,257`（簡→繁詞組） | `SKILL.md`、`THIRD-PARTY-NOTICES.md`、`references/conversion.md`、`references/encoding.md`、`references/cli.md`、`references/data-files.md`、`scripts/core.js`、`scripts/selftest.js`、`scripts/tradzh.js` |
 | `11,129`（`knownHanzi` 聯集字數） | `references/encoding.md`、`scripts/core.js` |
-| `830`（繁體偏好） | `SKILL.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md` |
-| `810`（反向用語偏好）、`1,002`（相容字） | `SKILL.md`、`references/conversion.md`、`references/encoding.md`、`references/cli.md`、`references/data-files.md`、`THIRD-PARTY-NOTICES.md` |
-| `17 字＋30 詞＋15 弱＋3 樣式`（粵語偵測） | `SKILL.md`、`references/cantonese.md`、`references/data-files.md`、`THIRD-PARTY-NOTICES.md` |
+| `830`（繁體偏好） | `SKILL.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md`、`scripts/tradzh.js` |
+| `810`（反向用語偏好） | `SKILL.md`、`THIRD-PARTY-NOTICES.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md`、`scripts/tradzh.js` |
+| `1,002`（相容字） | `SKILL.md`、`THIRD-PARTY-NOTICES.md`、`references/data-files.md`、`references/encoding.md` |
 | `367`／`123`（日文專有字／詞） | `README.md`、`SKILL.md`、`references/japanese.md`、`references/cli.md`、`references/data-files.md` |
-| `12 字＋17 詞`（可轉粵語） | `SKILL.md`、`references/cantonese.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md`、`THIRD-PARTY-NOTICES.md` |
+| `346`（日文轉換對照） | `SKILL.md`、`THIRD-PARTY-NOTICES.md`、`references/japanese.md`、`references/data-files.md` |
 | `2,637`（簡體專有字） | `README.md`、`SKILL.md`、`references/cli.md`、`references/data-files.md`、`references/glyph-table.md`、`references/japanese.md` |
-| `10`／`54`／`127`（語體偵測／轉換檢查／網頁 fixtures 總數） | `references/cantonese.md`、`references/japanese.md` |
+| `3,083`（繁體專有字） | `README.md`、`SKILL.md`、`references/data-files.md` |
+| `17 字`／`30 詞`／`15 弱`／`3 樣式`（粵語偵測，人工複查） | 四個數字合起來出現在 `SKILL.md`、`references/data-files.md`；`17` 與 `3` 另見 `references/cantonese.md`、`THIRD-PARTY-NOTICES.md`（**`30`／`15` 不在那兩支**——這張表以前把四類寫成一列，2026-09-20 更正） |
+| `12 字＋17 詞`（可轉粵語，人工複查） | `SKILL.md`、`references/cantonese.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md`、`THIRD-PARTY-NOTICES.md` |
+| `10`／`54`／`127`（語體偵測／轉換檢查／網頁 fixtures 總數，人工複查） | `references/cantonese.md`、`references/japanese.md` |
 | `66,884`／`66,769`／`99.83%`／原創 `115`（**資料來源比例**） | **不要手改**——跑 `npm run stats` 重算（它會逐表列出，並用「chars 減去 map 鍵」量出和製漢字 21 字）。引用處：`README.md` 的「OpenCC 給了什麼」那節 |
 
 網頁頁尾的數字是**從表算出來的**（`build-web.js`），所以只有 `dist/tradzh.html` 需要重建。

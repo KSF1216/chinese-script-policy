@@ -27,8 +27,9 @@ export const config = {
     // 這套交接紀律自己的工具，住在技能裡而不是本 repo
     'docs-check.mjs',
     'docs-selftest.mjs',
-    'tools/docs.mjs',
-    'tools\\docs.mjs',
+    // ⚠️ tools/docs.mjs 不列在這裡（2026-09-20 移除）：它**就在本 repo**，而且已經出貨。
+    // 列成例外等於「引用它不檢查」——引用一個不存在的路徑時不會有人發現。留著 tools/verify.mjs
+    // 是因為那支真的住在別的工作區（那些行是跨專案證據）。
     'tools/verify.mjs',
     'tools\\verify.mjs',
     // 外部 repo 與網站的檔案
