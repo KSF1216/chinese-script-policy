@@ -2,12 +2,17 @@
 id: publishing-chinese-script-policy
 status: active
 acceptance: |
+  node tools\docs.mjs
   npm test
   npm run test:tarball
   npm run audit
   npm pack --dry-run
 facts: |
-  `npm view chinese-script-policy version` -> 1.2.0（2026-09-20 實測；packument 的 versions 只有 1.2.0、time 也沒有 1.3.0）
+  `npm view chinese-script-policy version` -> 1.2.0（2026-09-20 21:0x HKT 實測；packument 的 versions 只有 1.2.0、time 也沒有 1.3.0）
+  `git tag -l` -> v1.0.0, v1.2.0（最新 tag 是 v1.2.0；本地 package.json 已是 1.3.0＝**未發布**）
+  `curl -s https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> 頁尾 v1.3.0（Pages 跟 repo，不跟 npm：**兩個出口現在不同版**）
+  `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
+  `node tools\docs.mjs board` -> project／publishing 兩張 active ＋ 1 張 blocked（發布卡）
 updated: 2026-09-20
 ---
 
@@ -21,12 +26,14 @@ updated: 2026-09-20
 
 ## 路由
 
-| 出口 | 內容 |
-|---|---|
-| **npm**（主要） | 套件本體：plugin／skill／CLI／資料表 |
-| **GitHub** | repo ＋ topics（上限 20）；About 是另一個 350 上限 |
-| **GitHub Pages** | 離線網頁 `dist/tradzh.html`（push 後約 20～40 秒重建） |
-| **本機 DSH** | `~/.dsh/skills/chinese-script-policy` 是指向本 repo 的 **junction**（所以 `link:`、headless 技能發現、各處寫死的路徑都照常） |
+| 出口 | 內容 | 重新載入方式 |
+|---|---|---|
+| **npm**（主要） | 套件本體：plugin／skill／CLI／資料表 | 安裝即生效；**文件類改動只有重發才會更新** |
+| **GitHub** | repo ＋ topics（上限 20）；About 是另一個 350 上限 | push 後立刻（含 `raw`） |
+| **GitHub Pages** | 離線網頁 `dist/tradzh.html` | push 後約 20～40 秒自動重建 |
+| **本機 DSH** | `~/.dsh/skills/chinese-script-policy` 是指向本 repo 的 **junction**；`web` 與 `headless` 兩個 profile 都用 `link:` 指向它，並列在 `dsh.profile.bundles` | 宿主那半（`index.mjs`）要**重啟 profile**；瀏覽器那半（`lib/client.js`）每次請求即時產生，**重新整理頁面**就有 |
+
+**怎麼發**（版號、`npm publish` 的三段式、快取、發布後要更新的東西）寫在 `PUBLISHING.md` §4 的一頁式 runbook。
 
 ## 為什麼這一張**必填** `facts`
 

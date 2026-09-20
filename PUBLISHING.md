@@ -247,7 +247,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
 | npm（待發布） | **`1.3.0` 已備好、尚未發布**（2026-09-20 12:5x 香港時間實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`，`time` 也沒有 1.3.0——**1.3.0 從來沒發過**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.0`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**61 檔**）全綠。**要發 1.3.0 還是先 bump 成 1.3.1，見 `NEXT-release-1.3.1.md`**（那裡是這個決定的唯一出處）；`npm publish` 由使用者在自己的終端機跑（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.0 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
-| ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（見 §385）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
+| ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
 
@@ -308,6 +308,38 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 
 （`webcache.googleusercontent.com` 回 200 是假警報 —— Google 早已停掉快取服務，
 那個回應只是搜尋頁的 JS 外殼，內容裡沒有舊版任何一個字。）
+
+## 4. 發布流程（實際操作）
+
+> **這一節是「怎麼發」**；**「發到哪些出口、現在已經發到哪一版」是立場**，機器可檢的那一份在
+> `CARD/active/PUBLISHING-chinese-script-policy.md`（`acceptance` ＋ **必填 `facts`：查詢指令與當輪輸出**）。
+> 兩邊**不重述**：立場變了更新那張卡，指令變了更新這一節。
+
+### ⭐ 一頁式 runbook（2026-09-20 定版）
+
+| # | 誰 | 做什麼 | 為什麼是這一步 |
+|---|---|---|---|
+| 0 | agent | **先查事實**：`npm view chinese-script-policy version`（或 `GET /<pkg>/latest`），把**查詢與輸出**貼進 `PUBLISHING-*` 卡的 `facts` | 2026-09-20 的事故：發布卡寫「發 1.3.1」，前提是 1.3.0 已發布，而 registry 上**從來沒有 1.3.0**（`latest` 是 1.2.0）。**形狀全綠、事實全錯**——所以「應該已經發了」不是狀態，是記憶 |
+| 1 | **使用者** | 決定**版號**（功能 → minor；文件與守門 → patch）。⚠️ 「下一個版號」不一定是 patch：**沒發布過的版號仍然是下一版** | 版號是唯一不能撤回的東西（unpublish 過的號碼永久保留、不能再用） |
+| 2 | agent | `npm version <v> --no-git-tag-version` → `npm run build:web` | 頁尾印版本號，**順序不能顛倒**；`test:web` 會逐位元組比對重建的頁面 |
+| 3 | agent | `npm test`（含 `test:docs`）→ `npm run test:tarball` → `npm run audit` → `npm pack --dry-run` | **checkout 會過 ≠ 使用者拿到的那份會過**（§1 的八個檢查） |
+| 4 | agent | 更新 §6 的發布說明（涵蓋**這段時間的全部改動**，不是只有最後一項）→ commit ＋ push `main` | GitHub（含 `raw`）立刻跟上；npm 只跟 tarball |
+| 5 | **使用者** | **在自己的終端機跑 `npm publish`**（安全金鑰三段式；非 TTY 會立刻 `EOTP`，而且網址被遮蔽成 `***`） | 下一節有完整的流程圖與判讀方法 |
+| 6 | agent | 等 `dist-tags.latest` 跳版（**約一分鐘**，publish 是非同步的）→ `GET /<pkg>/latest` 驗版本 → tarball 用 `?v=1` 繞 CDN 快取驗 | 一分鐘內查到舊版**不是失敗**；看到 404 也先別重發 |
+| 7 | agent | `git tag -a vX -m …` ＋ push tag → 建 GitHub Release（body 取 §6） | tag 是「這一版＝這個 commit」的證據 |
+| 8 | agent | 更新 `PUBLISHING-*` 卡的 `facts`（換成新版的查詢與輸出）＋ 把發布卡 `stamp`、`sync-folders` 移到 `done` | **要說「已經交付了」之前，先把那條查詢重跑一次**（`verified_at` 是指標，不是證據） |
+| 9 | **使用者** | 社群目錄投稿（§7） | 另一個出口，有自己的窗口（repo 至少 1 天、`skill` 分類） |
+
+**發布後要更新的東西**：
+
+| 東西 | 怎麼更新 |
+|---|---|
+| `CARD/active/PUBLISHING-chinese-script-policy.md` 的 `facts` | 貼 `npm view … version`（或 `/latest`）的**當輪輸出**，不要憑印象 |
+| §3 的 npm 那一列 | 新版號、檔數、shasum（`npm view <pkg>@<v> dist.shasum`） |
+| GitHub Release | body 取自 §6 對應那段（別只寫一行） |
+| 發布卡 | `stamp` 蓋 `verified_at`，再 `sync-folders` 移到 `done` |
+
+**同一班車原則**：文件類小修**攢一攢再一次發**——本機／GitHub／Pages／npm 四個露出點不會同時更新（見下面的「四個露出點」）。
 
 ### npm 發布的卡點與解法（2026-09-17 已發布）
 
@@ -545,11 +577,30 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 
 **`PROJECT-chinese-script-policy.md`**（2026-09-20 新增）——**這個 repo 自己的卡**：`goal` 與四條完成標準。
 **它同時是「本 repo 有在用這套紀律」的宣告**：有它之後，`tools\docs.config.mjs` 的 `cards` 就必須涵蓋
-**每一個**卡種（`kind-coverage`），所以那一行現在是七個 pattern。
-`goal` 由 AIPMSkills 工作區的 agent 代擬，**還沒有經過本 repo 自己的 session 確認**——要改就直接改那一行。
+**每一個**卡種（`kind-coverage`），所以那一行現在是**八個** pattern。
+`goal` 由 AIPMSkills 工作區的 agent 代擬；**本 repo 的 session 已於 2026-09-20 覆核**（與實際相符、
+沒有要改的）——**覆核 ≠ 核准，定稿權仍在使用者**。
 
-> 這個 repo 以前只有 `NEXT-` 一種卡，所以 `cards` 曾是單一 glob。現在是七個 pattern 的陣列
+> 這個 repo 以前只有 `NEXT-` 一種卡，所以 `cards` 曾是單一 glob。現在是**八個** pattern 的陣列
 > （`CARD/*/<KIND>-*.md`）：宣告採用就等於宣告整套詞彙，載不到東西的 pattern 會印出來、不是 FAIL。
+
+**卡片的資料夾佈局（2026-09-20 起）**：**status 是唯一來源，資料夾只是它的視圖**——
+`CARD/{active,blocked,done,todo,dropped}/`。搬檔**不要手搬**，跑 `node tools\docs.mjs sync-folders`。
+歷史（`done`／`dropped`）**不載入**（`ignoreStatuses`）：front matter 已凍結、引用會腐化，
+檢查只會製造噪音——它們只被豁免**引用檢查**，自己的狀態欄位仍然要合法。
+
+**每個狀態有自己的必填欄位**（缺了會被擋，這是刻意的）：
+
+| status | 必填 | 誰產生 |
+|---|---|---|
+| （全部） | `updated` | 人 |
+| `doing` | `claimed_by` ＋ `claimed_at` | 程序 |
+| `done` | **`verified_at`**（UTC、`YYYY-MM-DDTHH:MMZ`） | `node tools\docs.mjs stamp <id>`——**時間一律由程序產生**，模型不知道現在幾點 |
+| `blocked` | `blocked_by` ＋ `blocked_since` | `blocked_by` 是人寫的，時間是 `stamp` |
+| `dropped` | `dropped_reason` ＋ `dropped_at` | 同上 |
+| `PUBLISHING-*` | 另加 **`facts`**（查詢指令 ＋ 當輪輸出） | 人跑查詢、貼輸出 |
+
+> **`verified_at` 只證明形狀**（「有人在那個時間說他驗了」），**不證明事實**；事實的證據是**內文的查詢指令與輸出**。
 
 這些卡**不在** `package.json` 的 `files` 白名單裡（不會出貨），所以索引放在這裡而不是 `README.md`——那是對外門面。
 
@@ -561,7 +612,10 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 - **`index` 必須指到 `PUBLISHING.md`**：用預設的 `README.md` 會把每張卡判成 `orphan-card`，而那**不能**靠改 `README.md` 解決。
 - **`foreignFiles` 是一份明列的例外名單**，比對方式是 `includes`（寫主檔名就夠）。目前列了五類：上游 OpenCC 的原始檔名（`TWPhrases.txt`、`TWVariantsPhrases.txt`、`JPShinjitaiCharacters.txt` 等，那是授權標示與出處，必須保留原樣）、跨專案證據（`NEXT-agents-md-pointer.md`、ComfyUI 的 `minimax_h3_latent_upscaler` 系列）、本紀律自己的工具（`docs-check.mjs`、`tools\verify.mjs`）、外部 repo 的文件（`plugins.json`、`contributing.md`）、npm 安裝後才產生的 shim（`tradzh.cmd`）；另有舊檔名的歷史對照（`tw-vocabulary.json`、`cn-vocabulary.json`）與 harness 的通用慣例檔名（`AGENTS.md`）。**沒有列進去的一律會被檢查**——把一個名字加進這份清單是一次刻意、可審查的動作。
 - **`tools\docs.mjs` 出貨（2026-09-20 起）、`tools\docs.config.mjs` 刻意不出貨**：wrapper 是用 `files` 裡的單一檔案路徑出貨的，找到不到慣例檔時印「skipped」並 `exit 0`（使用者的 `npm test` 不會壞，但仍然**說出聲**「什麼都沒檢查」）。原本的版本用「`PUBLISHING.md` 不存在」當判斷，可是 `tools\` 根本沒出貨，所以那段自我保護**到不了**——`npm test` 會先以 `MODULE_NOT_FOUND` 死掉。現在兩半都有測試（見 §1 的 `test:tarball`）。
-- 執行：`node tools\docs.mjs`（檢查，非零＝有問題）、`node tools\docs.mjs board`（計畫板）、`--json`（機器可讀）。
+- 執行：`node tools\docs.mjs`（檢查，非零＝有問題）、`board`（計畫板）、`--json`（機器可讀）、
+  `stamp <id>`（蓋該狀態的時間欄位）、`sync-folders`（依 status 搬卡片資料夾）、`breaktest`（故意弄壞）。
+- **`CARD\` 不可以出貨**（卡片是維護者的東西）。`files` 是白名單、本來就沒列它；`test:tarball` 另外
+  **明文禁止** `CARD/` 出現在 tarball 裡（不是只禁 `NEXT-`——那會在新增卡種時失效）。
 - 接線時用預設設定跑出來的 **34 條 FAIL 全部查證為假陽性**，正確設定下為 **0**。
 
 > 這裡只列**這個 repo 自己的**卡。不屬於這個套件的工作項（例如全域記憶 `~/.dsh/AGENTS.md` 的指標行）
@@ -589,6 +643,10 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
   為什麼不是「寫完再轉」、為什麼不用 BOM）。`references/encoding.md` 補成因與實測：
   同一支腳本五種編碼的對照表（**只有「UTF-8 無 BOM」會壞**，連 PowerShell ISE 預設的 UTF-16 都能跑），
   以及 `.cmd` 的純 LF 為什麼讓 `goto` 與 `set /p` 出怪事。
+- **設定卡加了兩層防護**（`lib/client.js`）：`apply()` 包 try/catch——宿主服務壞掉時**只少一張卡**，
+  不會把錯誤往上傳（別的 DSH 外掛實測過：一整棵外掛樹載入失敗）；卡片外面再包一層 **error boundary**，
+  出錯時**原位**印出「這張設定卡載入失敗」＋底層訊息，**不是留白**（留白跟「這個外掛沒有這一頁」
+  長得一模一樣）。訊息同時走 `ctx.logger.warn` 與 `console.error`，**失敗一律出聲**。
 
 **修正**
 - `scripts/build-codepage.ps1` 的註解裡有 **15 個非 ASCII 位元組**（五個常見繁體字），
@@ -609,26 +667,40 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
   `test:api` 的靜態檢查（每個 `npm run` 入口點都在 `files` 白名單裡）。
 
 **測試**
-- `test:api` 61 → 69 項：新增「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），
-  讀**原始位元組**確認每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，
-  並先證明兩個偵測器真的會紅（讀成文字就看不出差別，所以這條一定要在位元組層）。
-  **它第一次跑就抓到真的違規**（就是上面那個 `build-codepage.ps1`）——不是合成的假案例。
-  另外新增三條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、
-  `PUBLISHING.md` 的 npm 描述範例必須與 `package.json` 的 `description` **逐字相同**
-  （實測那份範例少了最後一句，而當時沒有任何測試看得出來）、
-  每個 `npm run` 入口點都必須在白名單裡（上面那兩支漏掉的檔案）。
+- `test:api` 61 → 80 項：
+  - 「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），讀**原始位元組**確認
+    每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，並先證明兩個偵測器真的會紅
+    （讀成文字就看不出差別，所以這條一定要在位元組層）。**它第一次跑就抓到真的違規**
+    （就是上面那個 `build-codepage.ps1`）——不是合成的假案例。
+  - 三條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、`PUBLISHING.md` 的 npm 描述範例
+    必須與 `package.json` 的 `description` **逐字相同**（實測那份範例少了最後一句，而當時沒有任何
+    測試看得出來）、每個 `npm run` 入口點都必須在白名單裡（就是漏掉的那兩支檔案）。
+  - **文件裡的筆數機檢**（11 條）：值**從資料檔算出來**（不是抄文件——抄文件會自我滿足）、
+    **逐檔**驗（`49,257`…`3,083` 各列一份清單）、只釘大到搜尋有意義的數字（小的改用「資料形狀」斷言）。
+    兩種弄壞都實測過：改 `README.md` 的 `2,637→2,636` → 紅；砍 `japanese-only.json` 一個詞
+    `123→122` → 紅並列出五個檔案。順帶抓到那張人工對照表**本身有三處寫錯**。
 - **新增 `npm run test:tarball`**（`scripts\tarball-selftest.mjs`）：打包 → 解開 → 在解開的
   package 裡再跑一次 `npm test`，並斷言 tarball 裡沒有維護者檔案（`PUBLISHING.md`、卡片、
   `.ship-deny.txt`、`tools\docs.config.mjs`）。**它第一次跑就抓到真的壞掉的東西**。
   刻意不掛進 `npm test`（會打包＋解開，約 15 秒），放在發布前清單裡（§1）。
-- `test:plugin` 的設定卡 24 → 27 項：`inspectFileType` 的 14 個行為案例（純 ASCII 放行、
-  `.md`／`read` 不觸發、`.cmd` 給 `block` 仍只警告、CRLF 放行而純 LF 觸發）、
-  真的 cordis waterfall 上的 3 個掛載案例，以及設定卡的第四組單選與**折疊標題行**跟著 `fileTypes` 變。
+- `test:plugin` 的設定卡 24 → 34 項：
+  - `inspectFileType` 的 14 個行為案例（純 ASCII 放行、`.md`／`read` 不觸發、`.cmd` 給 `block`
+    仍只警告、CRLF 放行而純 LF 觸發）、真的 cordis waterfall 上的 3 個掛載案例，以及設定卡的
+    第四組單選與**折疊標題行**跟著 `fileTypes` 變。
+  - **兩條防護各有測試**：`apply()` 遇到壞掉的宿主服務不得讓錯誤逸出、且**要出聲**；卡片 render 拋錯時
+    boundary 要畫出原因與底層訊息。測試端補了一個**迷你 renderer**（會叫用函式／類別元件、照 React 的
+    順序跑 boundary）＋ `React.Component`，並把預期的日誌收進陣列再斷言（`stderr` 0 行）。
+    兩層都**故意弄壞驗證過**：拿掉 boundary → 紅；讓 `apply` 的 catch 重拋 → 紅。
+  - **標題列的圖示兩條路都釘住**：宿主提供 `@deepseek-ai/dsh-client-ui-primitives`（**虛擬模組**，
+    由 web frontend 的 bundle 提供，跟 `react` 一樣）時畫圖示，沒有時畫文字 `▾`。
 
 **文件**
 - `README.md` 的寫入把關段落補上這兩條檔案類型規則與預設值；
   `references/integration.md` 補 `fileTypes` 的設定、三個刻意設計，以及**兩個還沒做的缺口**
   （`hooks.json` 那條路沒有這條規則、CLI 沒有 `--file-types`）。
+- 交接卡改成**資料夾佈局**（`CARD/{active,blocked,done,todo}`）＋新的卡片欄位
+  （`done` 要 `verified_at`、`blocked` 要 `blocked_since`、發布立場卡要 `facts`）。
+  卡片**不出貨**，`test:tarball` 會明文禁止 `CARD/` 出現在 tarball 裡。
 - 兩張交接卡（`NEXT-write-rules.md`、`NEXT-file-type-guard.md`）第一次進版控；
   進之前先清掉卡裡的本機路徑——`PUBLISHING.md` §5 早就把它們列進索引，
   公開 repo 上等於指向不存在的檔案。

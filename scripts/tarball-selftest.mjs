@@ -28,7 +28,10 @@ const ROOT = join(here, '..');
 // the guard's own hand-written config. `files` is a whitelist, so this is a second opinion -
 // the kind that catches a future `"tools"` (whole directory) entry sweeping them in.
 const MUST_NOT_SHIP = ['.ship-deny.txt', 'PUBLISHING.md', 'tools/docs.config.mjs'];
-const CARD_PREFIX = 'NEXT-';
+// The cards all live under CARD/ (status is the source of truth, the folder is its view), so
+// forbid the DIRECTORY rather than one file-name prefix: the old `NEXT-` test would quietly
+// stop covering OPEN-/PROJECT-/PUBLISHING- cards the moment the layout moved.
+const MUST_NOT_SHIP_DIRS = ['CARD/'];
 
 let failures = 0;
 const fail = (message) => { failures++; console.log('  FAIL ' + message); };
@@ -80,7 +83,8 @@ try {
   })(pkg);
 
   const leaked = files.filter((rel) =>
-    MUST_NOT_SHIP.includes(rel) || rel.split('/').some((part) => part.startsWith(CARD_PREFIX)));
+    MUST_NOT_SHIP.includes(rel) || MUST_NOT_SHIP_DIRS.some((dir) => rel.startsWith(dir)) ||
+    rel.split('/').some((part) => /^(NEXT|OPEN|DECISION|PROJECT|LESSON|REQ|TEST|PUBLISHING)-/.test(part)));
   ok('the tarball holds no maintainer-only file (' + files.length + ' files, ' +
     Math.round(size / 1024) + ' KB)');
   if (leaked.length) fail('maintainer-only file(s) in the tarball: ' + leaked.join(', '));
