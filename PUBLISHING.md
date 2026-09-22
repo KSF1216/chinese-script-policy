@@ -93,7 +93,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 **⚠️ 筆數有寫死在文件與程式裡，改完要一起更新**（這些數字不會自動同步，改了表很容易漏）：
 
 > 2026-09 README 瘦身（24,654 → 11,142 字元）之後，**多數細節搬到 `references/`**。
-> **判斷原則**：`scripts/*.js` 與 `references/*.md` 是權威，`README.md` 只留招牌數字（`2,637`、`367`／`123`）。
+> **判斷原則**：`scripts/*.js` 與 `references/*.md` 是權威，`README.md` 只留招牌數字（`2,637`、`3,083`、`367`／`123`）。
 >
 > **2026-09-20 起，下表的大數字由 `npm test` 的 `test:api` 逐條釘住**：值**從資料檔算出來**
 > （不是抄文件——抄文件會自我滿足、永遠不會紅），再要求下表列出的**每個**檔案都出現那個數字。
@@ -118,7 +118,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 | `17 字`／`30 詞`／`15 弱`／`3 樣式`（粵語偵測，人工複查） | 四個數字合起來出現在 `SKILL.md`、`references/data-files.md`；`17` 與 `3` 另見 `references/cantonese.md`、`THIRD-PARTY-NOTICES.md`（**`30`／`15` 不在那兩支**——這張表以前把四類寫成一列，2026-09-20 更正） |
 | `12 字＋17 詞`（可轉粵語，人工複查） | `SKILL.md`、`references/cantonese.md`、`references/conversion.md`、`references/cli.md`、`references/data-files.md`、`THIRD-PARTY-NOTICES.md` |
 | `10`／`54`／`127`（語體偵測／轉換檢查／網頁 fixtures 總數，人工複查） | `references/cantonese.md`、`references/japanese.md` |
-| `66,884`／`66,769`／`99.83%`／原創 `115`（**資料來源比例**） | **不要手改**——跑 `npm run stats` 重算（它會逐表列出，並用「chars 減去 map 鍵」量出和製漢字 21 字）。引用處：`README.md` 的「OpenCC 給了什麼」那節 |
+| `66,884`／`66,769`／`99.83%`／原創 `115`（**資料來源比例**） | **不要手改**——跑 `npm run stats` 重算（它會逐表列出，並用「chars 減去 map 鍵」量出和製漢字 21 字）。引用處：`README.md` 的 “What OpenCC provides, and what this project adds” 那節（英文版）與 `README.zh.md` 的「OpenCC 給了什麼」那節 |
 
 網頁頁尾的數字是**從表算出來的**（`build-web.js`），所以只有 `dist/tradzh.html` 需要重建。
 
@@ -153,7 +153,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 `Download raw file`、`npm install` 全部照舊——Pages 只是在同一個 repo 上多開一層提供方式。
 之後每次 `git push`（含 `dist/tradzh.html` 的更新）網站會跟著更新，不需要額外步驟。
 
-## 2. ⚠️ 描述有四個地方，改了一處就要四處同步
+## 2. ⚠️ 描述有五個地方（含中文版 README），改了一處就要同步
 
 **這是實際踩過的坑，而且踩過兩次**：加了日文軸（副軸）之後，程式、測試、`SKILL.md` 本文、
 `references/` 與 README 功能表都更新了，**但對外描述還是舊的**——GitHub 的 About 甚至
@@ -165,6 +165,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 | `SKILL.md` 的 frontmatter `description` / `whenToUse` | **模型**（技能目錄就只顯示這兩欄，載入時只注入本文） | ☐ |
 | `package.json` 的 `description` / `keywords` | npm 搜尋、其他 harness | ☐ **255 字元上限（見下）** |
 | `README.md` 開頭三行 | 第一次點進 repo 的人 | ☐ |
+| **`README.zh.md` 開頭三行**（2026-09-22 新增：英文／中文分成兩份） | GitHub 上的中文讀者，以及 **npm 安裝後**翻 tarball 的人 | ☐ |
 | **GitHub repo 的 About（description ＋ topics）** | 搜尋結果、分享連結的預覽 | ☐ |
 
 `SKILL.md` 的 frontmatter 是**唯一來源**：`index.mjs` 會解析它來註冊技能，
@@ -245,7 +246,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
-| npm（待發布） | **`1.3.1` 已備好、尚未發布**（2026-09-22 實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`）。原本備成 `1.3.0`，但那個版號**從未發布**，所以改由 `1.3.1` 承載（**`1.3.0` 永久保留不用**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.1`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**61 檔**）全綠。**`npm publish` 由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.1 段） |
+| npm（待發布） | **`1.3.1` 已備好、尚未發布**（2026-09-22 實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`）。原本備成 `1.3.0`，但那個版號**從未發布**，所以改由 `1.3.1` 承載（**`1.3.0` 永久保留不用**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.1`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**62 檔**）全綠。**`npm publish` 由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.1 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
@@ -738,6 +739,14 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
     由 web frontend 的 bundle 提供，跟 `react` 一樣）時畫圖示，沒有時畫文字 `▾`。
 
 **文件**
+- **README 改成英文為主，中文版另開一個檔案**（2026-09-22）：`README.md` 全篇改寫成英文
+  （章節與內容跟原本的中文版一對一，招牌數字 `2,637`／`3,083`／`367`／`123` 都留著），
+  **npm 套件頁與 GitHub 首頁顯示的就是這一份**；原本的中文原文搬到 `README.zh.md`
+  （`files` 白名單也補上它。**它一定會出貨**：npm 一律自動帶上根目錄的 `README*`，
+  所以這條只是把既成事實寫明白——套件頁本身仍然只渲染 `README.md`），兩邊開頭各加一列互相連結；
+  **打包清單因此 61 → 62 檔**。
+  `cantonese-allow.json` 因此多一條 `**/README.zh.md`（中文版同樣拿粵語字例當示範）。
+  刻意示範簡體與日文的那幾行照舊帶 `simplified-example`／`check-ok`——不然 `test:repo` 的三軸會紅。
 - `README.md` 的寫入把關段落補上這兩條檔案類型規則與預設值；
   `references/integration.md` 補 `fileTypes` 的設定、三個刻意設計，以及**兩個還沒做的缺口**
   （`hooks.json` 那條路沒有這條規則、CLI 沒有 `--file-types`）。

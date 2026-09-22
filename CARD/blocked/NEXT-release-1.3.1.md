@@ -46,10 +46,15 @@ acceptance: |
 npm test             # 十支子命令：八支 selftest ＋ test:repo（三軸掃自己）＋ test:cards（卡片守門）
 npm run test:tarball # 打包 → 解開 → 在裡面再跑一次 npm test（發布才會出貨的那份）
 npm run audit        # 字表稽核
-npm pack --dry-run   # 61 檔（多了 cantonese-allow.json 與 tools/cards.mjs）
+npm pack --dry-run   # 62 檔（多了 cantonese-allow.json 與 tools/cards.mjs；2026-09-22 再加 README.zh.md）
 ```
 
 版號 bump（選項 B）屬於發布動作，等決定再一起做。
+
+**2026-09-22 追加（同一版）**：`README.md` 改寫成**英文為主**（ds-harness-remote 那種節奏：
+標題 → 一行說明 → 連結列 → Highlights → 安裝 → 各節），原本的中文原文搬成 **`README.zh.md`**，
+兩邊開頭互相連結。發布說明已補在 `PUBLISHING.md` §6 的 1.3.1「文件」段；
+`npm pack --dry-run` 因此 **61 → 62 檔**（npm 本來就會自動帶上根目錄的 `README*`）。
 
 ## 為什麼是 `blocked`
 

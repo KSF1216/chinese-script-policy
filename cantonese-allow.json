@@ -4,6 +4,7 @@
     { "path": "**/SKILL.md", "why": "說明語體軸時刻意引用粵語標記當例子" },
     { "path": "**/references/**", "why": "整篇都在引用粵語當範例，那是文件的目的" },
     { "path": "**/README.md", "why": "功能表列出標記範例" },
+    { "path": "**/README.zh.md", "why": "中文版 README，與英文版同一份功能表、同樣列出標記範例" },
     { "path": "**/THIRD-PARTY-NOTICES.md", "why": "說明資料來源時引用範例" },
     { "path": "**/scripts/pre-write-check.js", "why": "攔截訊息就是給模型看的改寫範例，必須保留粵語字例" },
     { "path": "**/scripts/lib.js", "why": "攔截訊息（guardMessage）搬來這裡了，同樣要保留粵語字例；lib.js 是 hook 與外掛共用的決策來源" },
