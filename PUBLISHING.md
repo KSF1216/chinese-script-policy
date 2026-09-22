@@ -245,7 +245,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
-| npm（待發布） | **`1.3.0` 已備好、尚未發布**（2026-09-20 12:5x 香港時間實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`，`time` 也沒有 1.3.0——**1.3.0 從來沒發過**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.0`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**61 檔**）全綠。**要發 1.3.0 還是先 bump 成 1.3.1，見 `NEXT-release-1.3.1.md`**（那裡是這個決定的唯一出處）；`npm publish` 由使用者在自己的終端機跑（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.0 段） |
+| npm（待發布） | **`1.3.1` 已備好、尚未發布**（2026-09-22 實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`）。原本備成 `1.3.0`，但那個版號**從未發布**，所以改由 `1.3.1` 承載（**`1.3.0` 永久保留不用**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.1`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**61 檔**）全綠。**`npm publish` 由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.1 段） |
 | git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
@@ -570,7 +570,7 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 |---|---|---|
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
-| `NEXT-release-1.3.1.md` | 發布**下一個版本**（`package.json` 已是 1.3.0，但 **1.3.0 從未發布**——要直接發它，還是先 bump 成 1.3.1） | **blocked**（等使用者決定發哪個版號；`npm publish` 只能由人在終端機跑） |
+| `NEXT-release-1.3.1.md` | 發布 **1.3.1**（**決定已做成＝選項 B**：1.3.0 從未發布，改由 1.3.1 承載、1.3.0 永久不用） | **blocked**（只剩使用者在自己的終端機跑 `npm publish`） |
 | `NEXT-primitives-require.md` | 那個選擇性的 `dsh-client-ui-primitives` require：**確認或直接拿掉** | **done**（2026-09-20 本 repo 的 session：**推翻「它是死的」**——它是**虛擬模組**，由 web frontend 的 bundle 提供，跟 `react` 一樣；兩條路（有模組／沒模組）現在都有測試釘住） |
 | `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **done**（2026-09-20：兩層都實作，測試 27 → 34 項，兩層各自故意弄壞驗證過） |
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
@@ -662,10 +662,13 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 刻意不列入 npm 打包清單。
 ## 6. 發布說明（貼進 GitHub Release 用）
 
-### 1.3.0 — Windows 腳本檔類型的寫入守衛
+### 1.3.1 — Windows 腳本檔類型的寫入守衛（1.3.0 從未發布，改由這個版號承載）
 
 ```markdown
-### 1.3.0 — Windows 腳本檔類型的寫入守衛
+### 1.3.1 — Windows 腳本檔類型的寫入守衛
+
+> 這一版是「從 1.2.0 之後的全部改動」——原本備成 `1.3.0`，但那個版號**從未發布**
+> （registry 一直是 1.2.0），所以改由 `1.3.1` 承載，`1.3.0` 永久保留不用。
 
 **新增**
 - **設定卡的第四個開關：「Windows 腳本檔類型」**（`fileTypes`：`off`／`warn`／`block`，預設 `warn`）。
@@ -683,6 +686,8 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
   不會把錯誤往上傳（別的 DSH 外掛實測過：一整棵外掛樹載入失敗）；卡片外面再包一層 **error boundary**，
   出錯時**原位**印出「這張設定卡載入失敗」＋底層訊息，**不是留白**（留白跟「這個外掛沒有這一頁」
   長得一模一樣）。訊息同時走 `ctx.logger.warn` 與 `console.error`，**失敗一律出聲**。
+- **原始碼不再改名**：`hooks.json` 的 hook 協定與 CLI 的旗標不變；這一版唯一改名的東西在維護者層
+  （專案的卡片守門 `tools\docs.mjs` → `tools\cards.mjs`，見下），**使用者的指令與 API 不受影響**。
 
 **修正**
 - `scripts/build-codepage.ps1` 的註解裡有 **15 個非 ASCII 位元組**（五個常見繁體字），
@@ -703,7 +708,7 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
   `test:api` 的靜態檢查（每個 `npm run` 入口點都在 `files` 白名單裡）。
 
 **測試**
-- `test:api` 61 → 80 項：
+- `test:api` 61 → 81 項：
   - 「**repo 自己的位元組規則**」——走一遍 repo（跳過 `node_modules`／`.git`），讀**原始位元組**確認
     每個 `.ps1` 是純 ASCII、每個 `.cmd`／`.bat` 是純 ASCII ＋ CRLF，並先證明兩個偵測器真的會紅
     （讀成文字就看不出差別，所以這條一定要在位元組層）。**它第一次跑就抓到真的違規**
@@ -711,6 +716,8 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
   - 三條迴歸測試：`package.json` 一定要在洩漏掃描的涵蓋範圍內、`PUBLISHING.md` 的 npm 描述範例
     必須與 `package.json` 的 `description` **逐字相同**（實測那份範例少了最後一句，而當時沒有任何
     測試看得出來）、每個 `npm run` 入口點都必須在白名單裡（就是漏掉的那兩支檔案）。
+  - **掃描跳過的目錄必須同時被 `.gitignore` 忽略**：掃描與 git 是兩個防護，互相以為對方會擋就會出事
+    （實測：`.board/` 含絕對路徑、掃描跳過它、而它**沒被忽略** → 一次 `git add -A` 就會外洩）。
   - **文件裡的筆數機檢**（11 條）：值**從資料檔算出來**（不是抄文件——抄文件會自我滿足）、
     **逐檔**驗（`49,257`…`3,083` 各列一份清單）、只釘大到搜尋有意義的數字（小的改用「資料形狀」斷言）。
     兩種弄壞都實測過：改 `README.md` 的 `2,637→2,636` → 紅；砍 `japanese-only.json` 一個詞
@@ -734,6 +741,9 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 - `README.md` 的寫入把關段落補上這兩條檔案類型規則與預設值；
   `references/integration.md` 補 `fileTypes` 的設定、三個刻意設計，以及**兩個還沒做的缺口**
   （`hooks.json` 那條路沒有這條規則、CLI 沒有 `--file-types`）。
+- 維護者層：專案的卡片守門更名（`tools\docs.mjs` → `tools\cards.mjs`、`docs.config.mjs` → `cards.config.mjs`、
+  `test:docs` → `test:cards`，舊名仍可用）；新增 `VERIFICATION.md`（逐輪證據）與 `installDocs`
+  （安裝文檔＋ fallback 的紅燈）。**這些都不出貨**，出貨的只有跟著改的 `scripts\api-selftest.mjs`。
 - 交接卡改成**資料夾佈局**（`CARD/{active,blocked,done,todo}`）＋新的卡片欄位
   （`done` 要 `verified_at`、`blocked` 要 `blocked_since`、發布立場卡要 `facts`）。
   卡片**不出貨**，`test:tarball` 會明文禁止 `CARD/` 出現在 tarball 裡。

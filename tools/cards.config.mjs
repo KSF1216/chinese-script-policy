@@ -67,6 +67,10 @@ export const config = {
     // 舊檔名的歷史對照（改名紀錄要留著，不能因為檔案已改名就刪掉記載）
     'tw-vocabulary.json',
     'cn-vocabulary.json',
+    // 守門自己的舊名（2026-09-22 更名 docs* → cards*）：`PUBLISHING.md` 的發布說明與 §5
+    // 需要寫出「原本叫什麼」，而那些檔案**已經不存在、也不會再存在**——這是明列的歷史對照。
+    'docs.mjs',
+    'docs.config.mjs',
     // harness 的通用慣例檔名：本 repo 沒有這個檔，文件是在講「別的 harness 可以寫進 AGENTS.md」
     'AGENTS.md',
   ],

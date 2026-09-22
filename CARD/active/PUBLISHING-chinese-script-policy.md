@@ -8,9 +8,10 @@ acceptance: |
   npm run audit
   npm pack --dry-run
 facts: |
-  `npm view chinese-script-policy version` -> 1.2.0（2026-09-20 21:0x HKT 實測；packument 的 versions 只有 1.2.0、time 也沒有 1.3.0）
-  `git tag -l` -> v1.0.0, v1.2.0（最新 tag 是 v1.2.0；本地 package.json 已是 1.3.0＝**未發布**）
-  `curl -s https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> 頁尾 v1.3.0（Pages 跟 repo，不跟 npm：**兩個出口現在不同版**）
+  `npm view chinese-script-policy version` -> 1.2.0（2026-09-22 實測；packument 的 versions 只有 1.2.0）
+  `node -e "console.log(require('./package.json').version)"` -> 1.3.1（已備好、**未發布**；1.3.0 從未發布，永久不用）
+  `git tag -l` -> v1.0.0, v1.2.0（最新 tag 是 v1.2.0；發布後才補 v1.3.1）
+  `curl -s https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> 頁尾 v1.3.1（Pages 跟 repo，不跟 npm：**兩個出口現在不同版**）
   `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
   `node tools\cards.mjs board` -> project／publishing／verification 三張 active ＋ 1 張 blocked（發布卡）
 updated: 2026-09-22

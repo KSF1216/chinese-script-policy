@@ -1,8 +1,8 @@
 ---
 id: next-release-1.3.1
 status: blocked
-blocked_by: 使用者——(1) 決定要發哪一個版號（見下面兩個選項：直接發已備好的 1.3.0，或先 bump 成 1.3.1 一起發）；(2) 最後那一步 npm publish 必須由你在自己的終端機跑（非 TTY 環境會立刻 EOTP 失敗，而且印出來的網址會被遮蔽成 ***）
-updated: 2026-09-20
+blocked_by: 使用者——**決定已做成（選項 B）**，只剩最後那一步：`npm publish` 必須由你在自己的終端機跑（非 TTY 環境會立刻 EOTP 失敗，而且印出來的網址會被遮蔽成 ***）
+updated: 2026-09-22
 blocked_since: 2026-09-20T09:43Z
 acceptance: |
   npm test
@@ -11,40 +11,42 @@ acceptance: |
   npm pack --dry-run
 ---
 
-# 發布下一個版本（`package.json` 已經是 1.3.0，但 **1.3.0 從未發布**）
+# 發布 1.3.1（`package.json` 已是 1.3.1、已備好；**1.3.0 從未發布，永久不用**）
 
-> 檔名與 `id` 是歷史留下來的（2026-09-20 由另一個 session 建立，當時假設 1.3.0 已經發布）。
+> 檔名與 `id` 是歷史留下來的（2026-09-20 建立時假設 1.3.0 已發布）。
 > 保留檔名是為了不讓 `tools/cards.config.mjs`、`PUBLISHING.md` 與 `breaktest` 的引用失效；
-> **立場以下面這一節為準**（2026-09-20 更正）。
+> **立場以下面這一節為準**。
 
-## 事實（2026-09-20 12:5x 香港時間實測）
+## 決定（2026-09-22 由使用者做成）：**選項 B**
+
+使用者問「做 1.3.1？」→ 走 B。理由與代價寫在下面，**代價是單向的**：`1.3.0` 這個版號永久保留不用。
+
+## 事實（2026-09-22 實測）
 
 | 項目 | 值 | 怎麼知道的 |
 |---|---|---|
 | npm `dist-tags.latest` | **1.2.0** | `GET https://registry.npmjs.org/chinese-script-policy/latest` → `version: 1.2.0` |
 | registry 上的版本 | **只有 1.2.0** | packument 的 `versions` 只有 `1.2.0`；`time` 只有 `1.0.0`／`1.1.0`／`1.1.1`／`1.2.0`（unpublish 過的版本仍會留在 `time`，所以「1.3.0 發過又刪掉」不成立） |
-| 本機 `package.json` | **1.3.0**（已 bump、`dist/tradzh.html` 頁尾也是 v1.3.0） | 2026-09-19 備好，`npm publish` 一直沒有跑 |
+| 本機 `package.json` | **1.3.1**（已 bump、`dist/tradzh.html` 頁尾也是 v1.3.1） | 2026-09-22 由本 repo 的 session 備好 |
 | git tag／Release | 最新的只有 `v1.2.0` | `git tag -l`、GitHub releases API |
 
-**所以「下一個版本」不是 1.3.1 這個 patch——1.3.0 整包（檔案類型守衛那個功能版）都還沒出去。**
+## 兩個選項（B 已選）
 
-## 兩個選項（選一個，不要兩個都做）
-
-| 選項 | 做什麼 | 適合 |
+| 選項 | 做什麼 | 狀態 |
 |---|---|---|
-| **A：直接發 1.3.0** | 什麼都不用改版號，跑完驗收就 `npm publish`。守門類的改動（`test:cards`、`test:tarball`、`tools/cards.mjs` 納入出貨）一起坐這班車 | 想趕快把功能版送出去 |
-| **B：先 bump 成 1.3.1 再發** | `npm version patch`（1.3.0 → 1.3.1）＋ 重建 `dist/tradzh.html`，然後 `npm publish` | 想把「1.3.0 沒發過」這件事留成紀錄；代價是 1.3.0 這個版號從此不用 |
+| A：直接發 1.3.0 | 不改版號就發 | **未採用**（`1.3.0` 因此永久保留不用） |
+| **B：bump 成 1.3.1 再發** | `npm version 1.3.1` ＋ 重建 `dist/tradzh.html` | **已選並已做完**（版號、頁尾、發布說明都跟著改） |
 
-**兩個選項的出貨內容一樣**：從 1.2.0 之後的所有改動（檔案類型守衛、`--console-hazard` 之後的 `fileTypes` 開關、文件、`test:api` 的新守門、`test:tarball`）。
-所以**發布說明用 §6 的 1.3.0 段**（那一整段就是「1.2.0 → 現在」的差異），不要只寫 `test:cards`。
+**出貨內容＝從 1.2.0 之後的全部改動**，所以**發布說明用 `PUBLISHING.md` §6 的 1.3.1 段**
+（那一整段就是「1.2.0 → 現在」的差異），不要只寫某一項。
 
 ## 發布前（agent 已經做完的）
 
 ```powershell
-npm test             # 九支 selftest ＋ test:repo（三軸掃自己）＋ test:cards（交接文件守門）
+npm test             # 十支子命令：八支 selftest ＋ test:repo（三軸掃自己）＋ test:cards（卡片守門）
 npm run test:tarball # 打包 → 解開 → 在裡面再跑一次 npm test（發布才會出貨的那份）
 npm run audit        # 字表稽核
-npm pack --dry-run   # 61 檔（2026-09-20 起，多了 cantonese-allow.json 與 tools/cards.mjs）
+npm pack --dry-run   # 61 檔（多了 cantonese-allow.json 與 tools/cards.mjs）
 ```
 
 版號 bump（選項 B）屬於發布動作，等決定再一起做。

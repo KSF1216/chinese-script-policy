@@ -70,5 +70,20 @@
 3. **`installDocs` 沒接**：更名這種「裝完了」的動作，義務是「更新安裝文檔 ＋ 寫出 fallback」，
    而漏掉**沒有任何症狀**。補上 `tools\cards.config.mjs` 的 `installDocs` 之後，那兩件事變成紅燈。
 
-**還沒做**：`npm publish`（`CARD/blocked/NEXT-release-1.3.1.md`，等使用者決定發 1.3.0 或 1.3.1）。
-本 repo 目前沒有 `OPEN-` 卡。
+**還沒做**：`npm publish`（`CARD/blocked/NEXT-release-1.3.1.md`；**決定已做成＝選項 B**，
+1.3.1 已備好，只剩使用者在自己的終端機按下 publish）。本 repo 目前沒有 `OPEN-` 卡。
+
+## 第二輪（2026-09-22）：備妥 1.3.1
+
+**做了什麼**：使用者決定走「選項 B」（`1.3.0` 從未發布 → 改由 `1.3.1` 承載）。
+bump 版號 → 重建 `dist/tradzh.html` → §6 發布說明改寫成 1.3.1（內容涵蓋 1.2.0 之後的全部改動）
+→ 更新 PUBLISHING 卡的 `facts`、發布卡的決定與事實 → 重跑全套。
+
+**實測數字**：`package.json` `1.3.1`、`dist/tradzh.html` 頁尾 `v1.3.1`；
+`npm test` → 10 個子命令全綠（`test:web` 逐位元組比對重建後的頁面）；`npm run test:tarball` → PASS；
+`node tools\cards.mjs` → 4 卡 0 問題；`npm run audit` → clean。
+
+**故意弄壞**：這一輪沒有新增守門，所以只重跑了既有的破壞測試（`node tools\cards.mjs breaktest` → exit 0）。
+
+**還沒做**：`npm publish`（人的動作）；發布後要 `git tag v1.3.1` ＋ GitHub Release（body 取 §6）
+＋ 更新 PUBLISHING 卡的 `facts`（registry 查詢與輸出）＋ 把發布卡 `stamp`／`sync-folders` 移到 `done`。
