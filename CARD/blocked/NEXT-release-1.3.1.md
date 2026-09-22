@@ -14,7 +14,7 @@ acceptance: |
 # 發布下一個版本（`package.json` 已經是 1.3.0，但 **1.3.0 從未發布**）
 
 > 檔名與 `id` 是歷史留下來的（2026-09-20 由另一個 session 建立，當時假設 1.3.0 已經發布）。
-> 保留檔名是為了不讓 `tools/docs.config.mjs`、`PUBLISHING.md` 與 `breaktest` 的引用失效；
+> 保留檔名是為了不讓 `tools/cards.config.mjs`、`PUBLISHING.md` 與 `breaktest` 的引用失效；
 > **立場以下面這一節為準**（2026-09-20 更正）。
 
 ## 事實（2026-09-20 12:5x 香港時間實測）
@@ -32,19 +32,19 @@ acceptance: |
 
 | 選項 | 做什麼 | 適合 |
 |---|---|---|
-| **A：直接發 1.3.0** | 什麼都不用改版號，跑完驗收就 `npm publish`。守門類的改動（`test:docs`、`test:tarball`、`tools/docs.mjs` 納入出貨）一起坐這班車 | 想趕快把功能版送出去 |
+| **A：直接發 1.3.0** | 什麼都不用改版號，跑完驗收就 `npm publish`。守門類的改動（`test:cards`、`test:tarball`、`tools/cards.mjs` 納入出貨）一起坐這班車 | 想趕快把功能版送出去 |
 | **B：先 bump 成 1.3.1 再發** | `npm version patch`（1.3.0 → 1.3.1）＋ 重建 `dist/tradzh.html`，然後 `npm publish` | 想把「1.3.0 沒發過」這件事留成紀錄；代價是 1.3.0 這個版號從此不用 |
 
 **兩個選項的出貨內容一樣**：從 1.2.0 之後的所有改動（檔案類型守衛、`--console-hazard` 之後的 `fileTypes` 開關、文件、`test:api` 的新守門、`test:tarball`）。
-所以**發布說明用 §6 的 1.3.0 段**（那一整段就是「1.2.0 → 現在」的差異），不要只寫 `test:docs`。
+所以**發布說明用 §6 的 1.3.0 段**（那一整段就是「1.2.0 → 現在」的差異），不要只寫 `test:cards`。
 
 ## 發布前（agent 已經做完的）
 
 ```powershell
-npm test             # 九支 selftest ＋ test:repo（三軸掃自己）＋ test:docs（交接文件守門）
+npm test             # 九支 selftest ＋ test:repo（三軸掃自己）＋ test:cards（交接文件守門）
 npm run test:tarball # 打包 → 解開 → 在裡面再跑一次 npm test（發布才會出貨的那份）
 npm run audit        # 字表稽核
-npm pack --dry-run   # 61 檔（2026-09-20 起，多了 cantonese-allow.json 與 tools/docs.mjs）
+npm pack --dry-run   # 61 檔（2026-09-20 起，多了 cantonese-allow.json 與 tools/cards.mjs）
 ```
 
 版號 bump（選項 B）屬於發布動作，等決定再一起做。

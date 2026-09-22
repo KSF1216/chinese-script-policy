@@ -17,3 +17,11 @@ dist/*
 # Machine-private deny-list for scripts/api-selftest.mjs's shipped-file scan. It must stay
 # untracked: the file exists precisely to keep those names out of anything that ships.
 .ship-deny.txt
+
+# The board plugin's per-workspace output. It holds ABSOLUTE PATHS by design (the board has to
+# say which directory it read), and the leak scan deliberately skips it for that reason - so
+# ignoring it here is what keeps that skip honest. Found 2026-09-22: it was untracked but NOT
+# ignored, i.e. one `git add -A` away from publishing `C:\Users\...` into a public repo, and the
+# scan could not have warned (it skips the directory). scripts/api-selftest.mjs now FAILS if a
+# skipped directory is not listed here.
+.board/

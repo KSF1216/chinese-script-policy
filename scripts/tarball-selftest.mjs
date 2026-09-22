@@ -27,11 +27,13 @@ const ROOT = join(here, '..');
 // Files that must never reach a user: maintainer notes, private name lists, hand-off cards and
 // the guard's own hand-written config. `files` is a whitelist, so this is a second opinion -
 // the kind that catches a future `"tools"` (whole directory) entry sweeping them in.
-const MUST_NOT_SHIP = ['.ship-deny.txt', 'PUBLISHING.md', 'tools/docs.config.mjs'];
+const MUST_NOT_SHIP = ['.ship-deny.txt', 'PUBLISHING.md', 'VERIFICATION.md', 'tools/cards.config.mjs'];
 // The cards all live under CARD/ (status is the source of truth, the folder is its view), so
 // forbid the DIRECTORY rather than one file-name prefix: the old `NEXT-` test would quietly
 // stop covering OPEN-/PROJECT-/PUBLISHING- cards the moment the layout moved.
-const MUST_NOT_SHIP_DIRS = ['CARD/'];
+// `.board/` is the board plugin's machine-local output (absolute paths, host names). It is not
+// ours and it must never ship - the leak scan skips it, so this is what keeps that honest.
+const MUST_NOT_SHIP_DIRS = ['CARD/', '.board/'];
 
 let failures = 0;
 const fail = (message) => { failures++; console.log('  FAIL ' + message); };
@@ -91,9 +93,9 @@ try {
 
   // The guard is shipped WITHOUT its config on purpose: the wrapper then prints "skipped" and
   // exits 0, so a consumer's suite keeps working. Both halves are asserted here - the file is
-  // present (otherwise `node tools/docs.mjs` is MODULE_NOT_FOUND) and the config is not.
-  if (!files.includes('tools/docs.mjs')) fail('tools/docs.mjs is missing: test:docs would be MODULE_NOT_FOUND');
-  if (files.includes('tools/docs.config.mjs')) fail('tools/docs.config.mjs shipped: the guard would run without its docs');
+  // present (otherwise `node tools/cards.mjs` is MODULE_NOT_FOUND) and the config is not.
+  if (!files.includes('tools/cards.mjs')) fail('tools/cards.mjs is missing: test:cards would be MODULE_NOT_FOUND');
+  if (files.includes('tools/cards.config.mjs')) fail('tools/cards.config.mjs shipped: the guard would run without its docs');
 
   // The real test: run the packaged suite the way a consumer would.
   const suite = spawnSync(process.execPath, [npmCli, 'test'], { cwd: pkg, encoding: 'utf8' });

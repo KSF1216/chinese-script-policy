@@ -2,7 +2,7 @@
 id: publishing-chinese-script-policy
 status: active
 acceptance: |
-  node tools\docs.mjs
+  node tools\cards.mjs
   npm test
   npm run test:tarball
   npm run audit
@@ -12,8 +12,8 @@ facts: |
   `git tag -l` -> v1.0.0, v1.2.0（最新 tag 是 v1.2.0；本地 package.json 已是 1.3.0＝**未發布**）
   `curl -s https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> 頁尾 v1.3.0（Pages 跟 repo，不跟 npm：**兩個出口現在不同版**）
   `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
-  `node tools\docs.mjs board` -> project／publishing 兩張 active ＋ 1 張 blocked（發布卡）
-updated: 2026-09-20
+  `node tools\cards.mjs board` -> project／publishing／verification 三張 active ＋ 1 張 blocked（發布卡）
+updated: 2026-09-22
 ---
 
 # 發布立場：chinese-script-policy 出到哪裡、現在「已發布」是什麼意思

@@ -42,7 +42,7 @@
     "examples",
     "third_party",
     "dist/tradzh.html",
-    "tools/docs.mjs",
+    "tools/cards.mjs",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md",
     "README.md"
@@ -61,7 +61,7 @@
     }
   },
   "scripts": {
-    "test": "node scripts/selftest.js && node scripts/codepage-selftest.mjs && node scripts/cli-selftest.mjs && node scripts/hook-selftest.mjs && node scripts/plugin-selftest.mjs && node scripts/api-selftest.mjs && node scripts/proxy-selftest.mjs && node scripts/web-selftest.mjs && npm run test:repo && npm run test:docs",
+    "test": "node scripts/selftest.js && node scripts/codepage-selftest.mjs && node scripts/cli-selftest.mjs && node scripts/hook-selftest.mjs && node scripts/plugin-selftest.mjs && node scripts/api-selftest.mjs && node scripts/proxy-selftest.mjs && node scripts/web-selftest.mjs && npm run test:repo && npm run test:cards",
     "test:conversion": "node scripts/selftest.js",
     "test:codepage": "node scripts/codepage-selftest.mjs",
     "test:cli": "node scripts/cli-selftest.mjs",
@@ -70,7 +70,7 @@
     "test:api": "node scripts/api-selftest.mjs",
     "test:proxy": "node scripts/proxy-selftest.mjs",
     "test:repo": "node scripts/tradzh.js --dir . && node scripts/tradzh.js --written --dir . && node scripts/tradzh.js --japanese --dir .",
-    "test:docs": "node tools/docs.mjs",
+    "test:cards": "node tools/cards.mjs",
     "audit": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit-glyph-list.ps1",
     "check": "node scripts/tradzh.js --dir .",
     "check:written": "node scripts/tradzh.js --written --dir .",

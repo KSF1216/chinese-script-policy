@@ -1,19 +1,22 @@
-// tools/docs.config.mjs - 這個 repo 的守門慣例（唯一手寫的檔案）
+// tools/cards.config.mjs - 這個 repo 的守門慣例（唯一手寫的檔案）
 //
-// `tools\docs.mjs` 是**產生**的（第二支入口已併入 `docs.mjs breaktest`）：
-//   node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\docs-init.mjs" --root "<本專案>"
+// `tools\cards.mjs` 是**產生**的（第二支入口已併入 `cards.mjs breaktest`）：
+//   node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-init.mjs" --root "<本專案>"
 // 改了產生出來的那兩支，下一次重新產生就會被蓋掉。
 export const config = {
   // **狀態由資料夾表達**，所以 `CARD/*/` 涵蓋五格；平的 pattern 刻意不撈子目錄，
   // 所以搬到一半會紅，不會靜默地什麼都沒載到。
   //
-  // 八個卡種全部列出：這個 repo 現在**有專案卡**（＝宣告採用），而宣告採用就等於
+  // 九個卡種全部列出：這個 repo 現在**有專案卡**（＝宣告採用），而宣告採用就等於
   // 宣告整套詞彙——缺哪一種，`kind-coverage` 會指名。載不到東西的 pattern 會印出來，不是 FAIL。
   // `publishing` 是 2026-09-20 技能新增的卡種（專案層級的發布立場），本 repo 也用它。
+  // `verification` 是同一批新增的第二張（2026-09-22 補上：這張卡早就存在，
+  // 但 pattern 漏了它，於是「有專案卡卻沒有驗證立場」這條規則一直紅著——漏一個 glob
+  // 就是漏一整套檢查，這正是 `kind-coverage` 存在的理由）。
   cards: [
     'CARD/*/NEXT-*.md', 'CARD/*/OPEN-*.md', 'CARD/*/DECISION-*.md',
     'CARD/*/PROJECT-*.md', 'CARD/*/LESSON-*.md', 'CARD/*/REQ-*.md', 'CARD/*/TEST-*.md',
-    'CARD/*/PUBLISHING-*.md',
+    'CARD/*/PUBLISHING-*.md', 'CARD/*/VERIFICATION-*.md',
   ],
   // 索引是 PUBLISHING.md，不是 README.md：README 是 npm 的對外門面（在 files 白名單裡），
   // 而卡片不會出貨——用預設的 README.md 會把每張卡判成 orphan，那不能靠改 README 解決。
@@ -21,7 +24,7 @@ export const config = {
   // 歷史（done／dropped）不載入：front matter 已凍結、引用會腐化，檢查只會製造噪音。
   // **用 status 排除，不是用路徑**——status 才是唯一來源。排除幾張會印在摘要行，不靜默。
   ignoreStatuses: ['done', 'dropped'],
-  // 資料夾是 status 的**視圖**。搬檔由 `node tools\docs.mjs sync-folders` 做，人不手搬。
+  // 資料夾是 status 的**視圖**。搬檔由 `node tools\cards.mjs sync-folders` 做，人不手搬。
   folderForStatus: {
     todo: 'CARD/todo',
     doing: 'CARD/doing',
@@ -49,9 +52,9 @@ export const config = {
     'NEXT-agents-md-pointer.md',
     'minimax_h3_latent_upscaler',
     // 這套交接紀律自己的工具，住在技能裡而不是本 repo
-    'docs-check.mjs',
-    'docs-selftest.mjs',
-    // ⚠️ tools/docs.mjs 不列在這裡（2026-09-20 移除）：它**就在本 repo**，而且已經出貨。
+    'cards-check.mjs',
+    'cards-selftest.mjs',
+    // ⚠️ tools/cards.mjs 不列在這裡（2026-09-20 移除）：它**就在本 repo**，而且已經出貨。
     // 列成例外等於「引用它不檢查」——引用一個不存在的路徑時不會有人發現。留著 tools/verify.mjs
     // 是因為那支真的住在別的工作區（那些行是跨專案證據）。
     'tools/verify.mjs',
@@ -69,9 +72,17 @@ export const config = {
   ],
   // 這份卡片集將要建立、或由工具寫到使用者指定位置的產物
   plannedFiles: [],
+  // 安裝文檔的兩半（2026-09-22 補）：**誰接上了、怎麼移除、失效時怎麼辦**。
+  // 漏掉這一步沒有任何症狀（少一列就是不在那裡），所以把它變成紅燈。
+  // 只驗**形狀**：文檔存在、有指名這個套件、fallback 那一節還在；句子真假仍由人負責。
+  installDocs: {
+    files: ['PUBLISHING.md', 'README.md'],
+    projects: ['chinese-script-policy'],
+    fallbackHeading: '卡守門的移除與 fallback',
+  },
 }
 
-// `node tools\docs.mjs breaktest`：證明這個 repo 的守門真的會紅。
+// `node tools\cards.mjs breaktest`：證明這個 repo 的守門真的會紅。
 // 刻意**不**掛進 npm test——它會改動文件（然後還原），是手動的重新校準工具。
 export const breaktest = {
   cases: [

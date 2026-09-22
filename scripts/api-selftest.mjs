@@ -78,7 +78,7 @@ console.log('packaging contract (the exports map)');
 
   // Every file a package.json script tells you to run must be IN the tarball - otherwise
   // `npm test` works in a checkout (which has every file) and dies in the package a user
-  // gets. Found 2026-09-20 by unpacking the tarball: `test:docs` pointed at tools/docs.mjs,
+  // gets. Found 2026-09-20 by unpacking the tarball: `test:cards` pointed at tools/cards.mjs,
   // which was not in `files` at all, and `test:repo` needed cantonese-allow.json, which was
   // not either. scripts/tarball-selftest.mjs is the full check (it runs the suite there);
   // this is the cheap static half that stays in the dev loop.
@@ -407,7 +407,33 @@ console.log('terminology: the settled names are pinned, because they regressed t
     leaks(sample, [...GENERIC, [synthetic, 'synthetic']]).length === 2,
     JSON.stringify(leaks(sample, [...GENERIC, [synthetic, 'synthetic']])));
 
-  const SKIP = new Set(['node_modules', '.git', DENY_FILE]);
+  // `.board` is machine-local state written by the board plugin that runs over these
+  // workspaces (it holds absolute paths by design, which is why it must never ship). It is
+  // excluded here for the same reason `node_modules` is: it is not one of our files.
+  // `test:tarball` forbids it independently, so this exclusion cannot hide a shipped leak.
+  const SKIP = new Set(['node_modules', '.git', DENY_FILE, '.board']);
+  // ...but skipping a directory in the LEAK SCAN is only safe if git also refuses to track it.
+  // Otherwise the scan looks away while `git add -A` stages absolute paths into a public repo
+  // (found 2026-09-22: `.board/board.json` held 14 absolute user-path strings and was untracked
+  // but NOT ignored). Tie the two together: every skip beyond the two git always-ignores must
+  // be named in .gitignore. This is the cheap check that would have caught it.
+  {
+    // A tarball install has no .gitignore (it is not in `files`), and nothing there is under
+    // version control - so the invariant is not applicable, and the check must SAY that rather
+    // than fail. (First version failed the packaged suite: `npm test` inside the tarball went
+    // red with "1 of 81 checks failed". `test:tarball` is what caught it.)
+    const gitignorePath = path.join(ROOT, '.gitignore');
+    if (existsSync(gitignorePath)) {
+      const gitignore = readFileSync(gitignorePath, 'utf8');
+      const mustBeIgnored = [...SKIP].filter((entry) => entry !== 'node_modules' && entry !== '.git');
+      const notIgnored = mustBeIgnored.filter((entry) => !new RegExp('(^|\\n)\\s*' + entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/?\\s*(\\n|$)').test(gitignore));
+      ok('everything the leak scan skips is also gitignored (' + mustBeIgnored.join(', ') + ')',
+        notIgnored.length === 0,
+        'not in .gitignore: ' + notIgnored.join(', '));
+    } else {
+      ok('the gitignore invariant was NOT checked (no .gitignore: tarball install, not a checkout)', true);
+    }
+  }
   const TEXT_FILE = /\.(md|txt|js|mjs|cjs|ts|json|ya?ml|html|ps1|cmd|bat|sh)$/i;
   const scanned = [];
   (function walk(dir) {
