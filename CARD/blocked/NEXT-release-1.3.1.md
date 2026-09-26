@@ -2,7 +2,7 @@
 id: next-release-1.3.1
 status: blocked
 blocked_by: 使用者——**決定已做成（選項 B）**，只剩最後那一步：`npm publish` 必須由你在自己的終端機跑（非 TTY 環境會立刻 EOTP 失敗，而且印出來的網址會被遮蔽成 ***）
-updated: 2026-09-22
+updated: 2026-09-26
 blocked_since: 2026-09-20T09:43Z
 acceptance: |
   npm test
@@ -60,6 +60,24 @@ npm pack --dry-run   # 62 檔（多了 cantonese-allow.json 與 tools/cards.mjs�
 
 兩件事都在使用者手上：**發哪個版號**，以及**最後那一步只能由人跑**（`npm publish` 在非 TTY 環境會直接失敗，連要轉貼的網址都被遮蔽）。
 所以這張卡不是 `todo`——它不是「等人去做」，是「等一個決定」。
+
+### 2026-09-26 agent 實測（證據，不是記憶）
+
+| 查了什麼 | 得到什麼 |
+|---|---|
+| `npm whoami` | **`ksf1216`，exit 0**——**token 是活的**（不是 E401；2FA 只缺 OTP 那一步） |
+| `npm view chinese-script-policy version` | `1.2.0`（registry 端仍是舊版） |
+| `npm publish` | **`EOTP`、exit 1**。tarball 有建起來（`chinese-script-policy-1.3.1.tgz`、**62 檔**、1.4 MB、shasum `c2f2022e4618b7f0f05a275f5659e86c24b56496`），但驗證網址與 `authId` 都被遮蔽成 `https://www.npmjs.com/auth/cli/***`、`/-/v1/done?authId=***` → **沒有任何可轉貼給人按的東西** |
+
+**結論：這一步在 agent 這邊不可能完成，也不必再試**（再試只會拿到同一個 EOTP）。
+使用者要跑的就是這三行（**自己的終端機**，TTY 才會出現可驗證的網址）：
+
+```powershell
+cd C:\Users\KSF\Desktop\DshProjects\chinese-script-policy
+npm publish          # 會開瀏覽器／印出網址，用 Windows Hello（安全金鑰）完成
+git tag v1.3.1; git push origin v1.3.1
+```
+
 
 ## 發布後要檢查的四個露出點
 
