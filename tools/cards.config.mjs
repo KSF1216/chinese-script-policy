@@ -93,21 +93,25 @@ export const breaktest = {
     {
       // ⚠️ 錨點必須是**活卡**：歷史（done／dropped）不載入，所以指到歷史的案例
       // 永遠不可能被 caught（它會回報「card is history」而不是靜默通過）。
-      // 搬家後只剩這張活卡，所以案例都指向它——它哪天結案，這些案例會紅，那時換卡。
+      // 2026-09-26：原錨點 `NEXT-release-1.3.1.md` 隨 1.3.1 發布**結案進了 `CARD/done/`**，
+      // 所以案例全部改指**站著的** `PUBLISHING-chinese-script-policy.md`（活卡，也在 §5 索引裡）。
+      // 教訓：錨點綁在一張**會結案**的卡上，結案那天就是這支校準工具壞掉的那天——
+      // 它只能指站著的卡（`PROJECT-*`／`PUBLISHING-*`／`VERIFICATION-*`）。
       name: 'missing reference',
-      file: 'NEXT-release-1.3.1.md',
+      file: 'PUBLISHING-chinese-script-policy.md',
       pattern: /^# .*$/m,
       add: '\n\n備註：細節見 `tools\\does-not-exist.mjs`。\n',
     },
-    { name: 'illegal status', file: 'NEXT-release-1.3.1.md', pattern: /^status: [a-z]+$/m, new: 'status: wip' },
-    { name: 'dependency on a missing card', file: 'NEXT-release-1.3.1.md', pattern: /^status: .*$/m, add: '\ndepends_on: no-such-card' },
+    { name: 'illegal status', file: 'PUBLISHING-chinese-script-policy.md', pattern: /^status: [a-z]+$/m, new: 'status: wip' },
+    { name: 'dependency on a missing card', file: 'PUBLISHING-chinese-script-policy.md', pattern: /^status: .*$/m, add: '\ndepends_on: no-such-card' },
     // `all: true`：索引裡可能合法地提到同一個名字不只一次，只拿掉第一處會讓卡片
     // 仍然「被提到」，案例就會因為錯的理由而通過。
-    { name: 'orphan card (index lost it)', file: 'PUBLISHING.md', old: 'NEXT-release-1.3.1.md', new: 'NEXT-release-1.3.1', all: true },
+    { name: 'orphan card (index lost it)', file: 'PUBLISHING.md', old: 'PUBLISHING-chinese-script-policy.md', new: 'PUBLISHING-chinese-script-policy', all: true },
     // `blocked` 是 2026-09-20 新增的狀態：它必須指名「被什麼擋住」，否則只是一句
-    // 讓人無法接手的宣告。拿掉 blocked_by 就必須紅燈。
-    { name: 'blocked card without blocked_by', file: 'NEXT-release-1.3.1.md', pattern: /^blocked_by: .*$/m, new: '' },
+    // 讓人無法接手的宣告。**改成把活卡的 status 翻成 blocked**（原本是拿掉一行 `blocked_by`）：
+    // 2026-09-26 之後專案裡沒有常駐的 blocked 卡，而這條要測的仍是「blocked 少了 blocked_by 會紅」。
+    { name: 'blocked card without blocked_by', file: 'PUBLISHING-chinese-script-policy.md', pattern: /^status: active$/m, new: 'status: blocked' },
   ],
   // 被動過檔案的 SHA-256：讓「我還原了」是位元組層級的說法
-  hashFiles: ['NEXT-file-type-guard.md', 'NEXT-release-1.3.1.md', 'PUBLISHING.md'],
+  hashFiles: ['NEXT-file-type-guard.md', 'PUBLISHING-chinese-script-policy.md', 'PUBLISHING.md'],
 }

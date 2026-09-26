@@ -237,7 +237,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 3. Pages 建好之後**根目錄會先 404 幾十秒**（部署還在滾），`/dist/tradzh.html` 先通、`/` 後通；
    不要看到 404 就以為設定錯了。
 
-## 3. 目前狀態（2026-09-19）
+## 3. 目前狀態（2026-09-26）
 
 | 項目 | 狀態 |
 |---|---|
@@ -245,9 +245,9 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
-| npm | **registry 上只有 `1.2.0`**（2026-09-19 07:13Z，`latest`，58 檔，shasum `e571b2d5…`，1.4 MB / unpacked 3.6 MB）。`1.0.0`／`1.1.0`／`1.1.1` 都已 unpublish（都在 72 小時窗口內）；**三個版號永久保留、不會再用**——`time` 紀錄還在，`versions` 只剩 1.2.0，被刪版本的 tarball 實測 **404** |
-| npm（待發布） | **`1.3.1` 已備好、尚未發布**（2026-09-22 實測 registry：`latest` 仍是 `1.2.0`，`versions` 只有 `1.2.0`）。原本備成 `1.3.0`，但那個版號**從未發布**，所以改由 `1.3.1` 承載（**`1.3.0` 永久保留不用**）。版號已 bump、`dist/tradzh.html` 頁尾印 `v1.3.1`、`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**62 檔**）全綠。**`npm publish` 由使用者在自己的終端機跑**（非 TTY 會立刻 `EOTP`），發布後才補 tag 與 GitHub Release（body 取 §6 的 1.3.1 段） |
-| git tag／Release | **`v1.2.0`**（annotated tag，已推）＋ GitHub Release 已建（body 直接取自 §6 的 1.2.0 段）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
+| npm | **`latest` = `1.3.1`**（2026-09-26 03:16Z 發布，**62 檔**、shasum `c2f2022e…`；tarball 同時帶 `README.md` 與 `README.zh.md`）。上一個版本是 `1.2.0`（58 檔、`e571b2d5…`）。`1.0.0`／`1.1.0`／`1.1.1` 已 unpublish、`1.3.0` 從未發布——**這四個版號永久保留、不會再用**；被刪版本的 tarball 實測 **404** |
+| npm（發布紀錄） | 1.3.1 由**使用者在自己的終端機**發布（2026-09-26 03:16:08Z；agent 跑必然 `EOTP` 且網址被遮蔽成 `***`）。發布前四道全綠：`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**62 檔**）；發布後的逐項查證在已結案的發布卡裡 |
+| git tag／Release | **`v1.3.1`**（annotated，指向 npm 記錄的 `gitHead` ＝ `9b653eb`，已推）與 **`v1.2.0`**（＋ 1.2.0 的 GitHub Release）。⚠️ **1.3.1 的 GitHub Release 還沒建**——這台沒有 `gh`、API 要 token，body 已抽成檔案給人貼（§6）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
@@ -326,7 +326,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | 3 | agent | `npm test`（含 `test:cards`）→ `npm run test:tarball` → `npm run audit` → `npm pack --dry-run` | **checkout 會過 ≠ 使用者拿到的那份會過**（§1 的八個檢查） |
 | 4 | agent | 更新 §6 的發布說明（涵蓋**這段時間的全部改動**，不是只有最後一項）→ commit ＋ push `main` | GitHub（含 `raw`）立刻跟上；npm 只跟 tarball |
 | 5 | **使用者** | **在自己的終端機跑 `npm publish`**（安全金鑰三段式；非 TTY 會立刻 `EOTP`，而且網址被遮蔽成 `***`） | 下一節有完整的流程圖與判讀方法 |
-| 6 | agent | 等 `dist-tags.latest` 跳版（**約一分鐘**，publish 是非同步的）→ `GET /<pkg>/latest` 驗版本 → tarball 用 `?v=1` 繞 CDN 快取驗 | 一分鐘內查到舊版**不是失敗**；看到 404 也先別重發 |
+| 6 | agent | 等 `dist-tags.latest` 跳版（**約 1～3 分鐘**，publish 是非同步的）→ `GET /<pkg>/latest` 驗版本 → tarball 用 `?v=1` 繞 CDN 快取驗 | 幾分鐘內查到舊版**不是失敗**；看到 404 也先別重發 |
 | 7 | agent | `git tag -a vX -m …` ＋ push tag → 建 GitHub Release（body 取 §6） | tag 是「這一版＝這個 commit」的證據 |
 | 8 | agent | 更新 `PUBLISHING-*` 卡的 `facts`（換成新版的查詢與輸出）＋ 把發布卡 `stamp`、`sync-folders` 移到 `done` | **要說「已經交付了」之前，先把那條查詢重跑一次**（`verified_at` 是指標，不是證據） |
 | 9 | **使用者** | 社群目錄投稿（§7） | 另一個出口，有自己的窗口（repo 至少 1 天、`skill` 分類） |
@@ -461,6 +461,9 @@ GitHub Changelog [2026-07-08](https://github.blog/changelog/2026-07-08-npm-insta
 日誌結尾是 `verbose exit 0` ＋ `info ok`。**`dist-tags.latest` 約一分鐘後才從舊版跳到新版**：
 這段時間 `npm view <pkg> version` 還是舊版、`npm view <pkg>@<新版>` 回 **E404**——
 **那不是失敗，是還沒處理完**（我這次就在一分鐘內查而誤判成「發布沒成功」）。
+**⚠️ 2026-09-26（1.3.1）又發生一次，而且更久**：03:16:08Z 發布，log 是 `PUT 202` ＋ `exit 0` ＋ `info ok`，
+但 03:16:52Z 與 03:17:49Z 查 `latest` 都還是 `1.2.0`、`GET /<pkg>/1.3.1` 回 **404**，約 **03:19Z** 才跳版
+——**間隔抓 1～3 分鐘比較安全**。同一個坑踩了第二次，所以把實際時間寫進來。
 判斷方式看日誌：`/-/v1/done` 出現 **200**（＝你按了金鑰）＋ 最後 `PUT 202` ＋ `info ok`
 ＝ 成功，去等、不要重跑。
 
@@ -571,7 +574,7 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 |---|---|---|
 | `NEXT-write-rules.md` | 把「Windows 檔案類型寫入陷阱」搬進 `SKILL.md` 的寫入區 | **done**（2026-09-19） |
 | `NEXT-file-type-guard.md` | 同一條規則的機械強制（外掛的 `fileTypes` 開關＋repo 自己的位元組守門） | **done**（2026-09-19） |
-| `NEXT-release-1.3.1.md` | 發布 **1.3.1**（**決定已做成＝選項 B**：1.3.0 從未發布，改由 1.3.1 承載、1.3.0 永久不用） | **blocked**（只剩使用者在自己的終端機跑 `npm publish`） |
+| `NEXT-release-1.3.1.md` | 發布 **1.3.1**（**決定已做成＝選項 B**：1.3.0 從未發布，改由 1.3.1 承載、1.3.0 永久不用） | **done**（2026-09-26 已發布；逐項查證與證據寫在卡內） |
 | `NEXT-primitives-require.md` | 那個選擇性的 `dsh-client-ui-primitives` require：**確認或直接拿掉** | **done**（2026-09-20 本 repo 的 session：**推翻「它是死的」**——它是**虛擬模組**，由 web frontend 的 bundle 提供，跟 `react` 一樣；兩條路（有模組／沒模組）現在都有測試釘住） |
 | `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **done**（2026-09-20：兩層都實作，測試 27 → 34 項，兩層各自故意弄壞驗證過） |
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |

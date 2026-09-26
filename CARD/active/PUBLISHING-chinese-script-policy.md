@@ -8,13 +8,13 @@ acceptance: |
   npm run audit
   npm pack --dry-run
 facts: |
-  `npm view chinese-script-policy version` -> 1.2.0（2026-09-22 實測；packument 的 versions 只有 1.2.0）
-  `node -e "console.log(require('./package.json').version)"` -> 1.3.1（已備好、**未發布**；1.3.0 從未發布，永久不用）
-  `git tag -l` -> v1.0.0, v1.2.0（最新 tag 是 v1.2.0；發布後才補 v1.3.1）
-  `curl -s https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> 頁尾 v1.3.1（Pages 跟 repo，不跟 npm：**兩個出口現在不同版**）
+  `npm view chinese-script-policy dist-tags.latest gitHead` -> latest = 1.3.1、gitHead = 9b653eb…（2026-09-26 03:16:08Z 發布；`…@1.3.1 dist.fileCount` -> **62**，tarball 同時帶 README.md 與 README.zh.md）
+  `node -e "console.log(require('./package.json').version)"` -> 1.3.1（本機與 registry 現在同版）
+  `git ls-remote --tags origin` -> v1.2.0 -> 62fb395、v1.3.1 -> 9b653eb（都已推；**1.3.1 的 GitHub Release 還沒建**）
+  `Invoke-WebRequest https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> HTTP 200、頁尾 v1.3.1（Pages 跟 repo，不跟 npm）
   `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
-  `node tools\cards.mjs board` -> project／publishing／verification 三張 active ＋ 1 張 blocked（發布卡）
-updated: 2026-09-22
+  `node tools\cards.mjs board` -> project／publishing／verification 三張 active（發布卡 2026-09-26 已 done，移出活卡集合）
+updated: 2026-09-26
 ---
 
 # 發布立場：chinese-script-policy 出到哪裡、現在「已發布」是什麼意思

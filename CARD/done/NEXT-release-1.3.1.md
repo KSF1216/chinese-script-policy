@@ -1,9 +1,8 @@
 ---
 id: next-release-1.3.1
-status: blocked
-blocked_by: 使用者——**決定已做成（選項 B）**，只剩最後那一步：`npm publish` 必須由你在自己的終端機跑（非 TTY 環境會立刻 EOTP 失敗，而且印出來的網址會被遮蔽成 ***）
+status: done
 updated: 2026-09-26
-blocked_since: 2026-09-20T09:43Z
+verified_at: 2026-09-26T03:19Z
 acceptance: |
   npm test
   npm run test:tarball
@@ -56,28 +55,34 @@ npm pack --dry-run   # 62 檔（多了 cantonese-allow.json 與 tools/cards.mjs�
 兩邊開頭互相連結。發布說明已補在 `PUBLISHING.md` §6 的 1.3.1「文件」段；
 `npm pack --dry-run` 因此 **61 → 62 檔**（npm 本來就會自動帶上根目錄的 `README*`）。
 
-## 為什麼是 `blocked`
+## 完成（2026-09-26）：已發布 **1.3.1**
 
-兩件事都在使用者手上：**發哪個版號**，以及**最後那一步只能由人跑**（`npm publish` 在非 TTY 環境會直接失敗，連要轉貼的網址都被遮蔽）。
-所以這張卡不是 `todo`——它不是「等人去做」，是「等一個決定」。
+**發布由使用者在自己的終端機完成**（agent 這邊必然 `EOTP`，證據留在下一節）。發布後逐項查證：
 
-### 2026-09-26 agent 實測（證據，不是記憶）
+| 查證 | 值 | 怎麼知道的 |
+|---|---|---|
+| registry `dist-tags.latest` | **1.3.1** | `npm view chinese-script-policy version` |
+| 已發布 tarball 的 `gitHead` | `9b653eb` | `npm view chinese-script-policy@1.3.1 gitHead` |
+| 已發布 tarball 檔案數 | **62** | `npm view …@1.3.1 dist.fileCount`；`npm pack chinese-script-policy@1.3.1 --dry-run --json` |
+| tarball 裡的兩份 README | **`README.md` 與 `README.zh.md` 都在** | 同上（逐檔列出） |
+| git tag | `v1.3.1` → `9b653eb`（annotated、已推） | `git ls-remote --tags origin` |
+| GitHub Release | **尚未建立**（這台沒有 `gh`，API 要 token） | body 已抽成檔案：`%TEMP%\chinese-script-policy-1.3.1-release.md`（＝`PUBLISHING.md` §6 的 1.3.1 段，9,249 bytes） |
+
+**⚠️ 一個新事實（不記住的話，下一次會把成功誤判成失敗）**：npm 發布**成功**的長相是
+`PUT 401` → 三段式驗證（`GET /-/v1/done` 每 0.2 秒輪詢，`202` ＝ 還沒按）→ 按下安全金鑰後 `GET … done` 回 **`200`**
+→ CLI 印 **`Your package is being processed and may take a few minutes to become available`** → `PUT **202**`（不是 201）
+→ **`exit 0` / `info ok`**。而**在那之後的幾分鐘內**，registry 查 `latest` 還是舊版、連 `…/1.3.1` 都回 **404**——
+**那不是失敗，不要重發**（會撞 `EPUBLISHCONFLICT`）。本次實測：**03:16:08Z** 發布，**03:16:52Z** 與 **03:17:49Z** 查都還是
+`1.2.0`／404，約 **03:19Z** 才變成 `1.3.1`。
+
+### 保留：agent 這邊為什麼做不到（2026-09-26 實測）
 
 | 查了什麼 | 得到什麼 |
 |---|---|
-| `npm whoami` | **`ksf1216`，exit 0**——**token 是活的**（不是 E401；2FA 只缺 OTP 那一步） |
-| `npm view chinese-script-policy version` | `1.2.0`（registry 端仍是舊版） |
-| `npm publish` | **`EOTP`、exit 1**。tarball 有建起來（`chinese-script-policy-1.3.1.tgz`、**62 檔**、1.4 MB、shasum `c2f2022e4618b7f0f05a275f5659e86c24b56496`），但驗證網址與 `authId` 都被遮蔽成 `https://www.npmjs.com/auth/cli/***`、`/-/v1/done?authId=***` → **沒有任何可轉貼給人按的東西** |
+| `npm whoami` | **`ksf1216`，exit 0**——token 是活的（不是 E401；2FA 只缺 OTP 那一步） |
+| agent 跑 `npm publish` | **`EOTP`、exit 1**；tarball 有建起來，但驗證網址與 `authId` 都被遮蔽成 `***` → **沒有可轉貼給人按的東西** |
 
-**結論：這一步在 agent 這邊不可能完成，也不必再試**（再試只會拿到同一個 EOTP）。
-使用者要跑的就是這三行（**自己的終端機**，TTY 才會出現可驗證的網址）：
-
-```powershell
-cd C:\Users\KSF\Desktop\DshProjects\chinese-script-policy
-npm publish          # 會開瀏覽器／印出網址，用 Windows Hello（安全金鑰）完成
-git tag v1.3.1; git push origin v1.3.1
-```
-
+（兩次建的 tarball shasum 相同：`c2f2022e4618b7f0f05a275f5659e86c24b56496`——agent 那次建的與真正發布的是同一份。）
 
 ## 發布後要檢查的四個露出點
 
