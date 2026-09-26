@@ -667,6 +667,9 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 刻意不列入 npm 打包清單。
 ## 6. 發布說明（貼進 GitHub Release 用）
 
+> **1.3.1 起，GitHub Release 的 body 用「English」那一份**（本站的對外門面已經是英文為主）；
+> 同一個版號底下的中文版留著當對照，兩份是同一個內容的兩種語言。
+
 ### 1.3.1 — Windows 腳本檔類型的寫入守衛（1.3.0 從未發布，改由這個版號承載）
 
 ```markdown
@@ -743,7 +746,7 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
     由 web frontend 的 bundle 提供，跟 `react` 一樣）時畫圖示，沒有時畫文字 `▾`。
 
 **文件**
-- **README 改成英文為主，中文版另開一個檔案**（2026-09-22）：`README.md` 全篇改寫成英文
+- **README 改成英文為主，中文版另開一個檔案**（2026-09-26）：`README.md` 全篇改寫成英文
   （章節與內容跟原本的中文版一對一，招牌數字 `2,637`／`3,083`／`367`／`123` 都留著），
   **npm 套件頁與 GitHub 首頁顯示的就是這一份**；原本的中文原文搬到 `README.zh.md`
   （`files` 白名單也補上它。**它一定會出貨**：npm 一律自動帶上根目錄的 `README*`，
@@ -763,6 +766,127 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 - 兩張交接卡（`NEXT-write-rules.md`、`NEXT-file-type-guard.md`）第一次進版控；
   進之前先清掉卡裡的本機路徑——`PUBLISHING.md` §5 早就把它們列進索引，
   公開 repo 上等於指向不存在的檔案。
+```
+
+### 1.3.1 — English（實際貼進 GitHub Release 的那一份）
+
+> GitHub Release 的 body 用**這一份**；下面是同一段的中文版。
+
+```markdown
+### 1.3.1 — write-time guard for Windows script file types
+
+> This release is "everything since 1.2.0". It was prepared as `1.3.0`, but that version number was
+> **never published** (the registry stayed on 1.2.0), so `1.3.1` carries it instead and `1.3.0` is
+> permanently retired.
+
+**Added**
+- **A fourth switch on the settings card: "Windows script file types"** (`fileTypes`: `off` / `warn` / `block`, default `warn`).
+  This is not a Chinese axis — the switches above look at *the Chinese inside the content*; this one looks at
+  **the type of file being written**. The rule is deliberately narrow: a `.ps1` / `.psm1` whose content holds
+  **any non-ASCII byte** is blocked (it really does break: every writer here writes "UTF-8 without a BOM", while
+  Windows PowerShell 5.1 reads `.ps1` as ANSI — the measured error is `The string is missing the terminator`);
+  a `.cmd` / `.bat` holding non-ASCII bytes, or **LF but no CRLF**, only warns (measured: it still runs, but on
+  another machine it turns into mojibake and `goto` jumps to the wrong label). It **looks at writes only and never
+  scans existing files** (someone else's UTF-16 or BOM-prefixed script is untouched), it is **fail-open**, and pure
+  ASCII never triggers it; `block` only ever blocks `.ps1`, and `.cmd` always only warns.
+- `SKILL.md` gained a "file-type traps (Windows)" section: the **single source** for the rule (two tables plus three
+  byte-level checks, why it is not "write first, convert later", and why a BOM is not the answer).
+  `references/encoding.md` gained the cause and the measurements: a five-encoding comparison of the same script
+  (**only "UTF-8 without a BOM" breaks** — even the UTF-16 that PowerShell ISE writes by default runs), and why a
+  bare-LF `.cmd` makes `goto` and `set /p` misbehave.
+- **Two layers of protection on the settings card** (`lib/client.js`): `apply()` is wrapped in try/catch, so when a
+  host service is broken **only that one card disappears** instead of the error travelling up (measured on another
+  DSH plugin: the whole plugin tree failed to load); and the card is wrapped in an **error boundary** that prints
+  "this settings card failed to load" **in place**, together with the underlying message, instead of leaving a blank
+  (a blank looks exactly like "this plugin has no such page"). The message goes to both `ctx.logger.warn` and
+  `console.error` — **failures always speak up**.
+- **No source renames for users**: the `hooks.json` hook protocol and the CLI flags are unchanged; the only thing
+  renamed in this release is on the maintainer side (this project's card guard `tools\docs.mjs` → `tools\cards.mjs`,
+  see below). **User-facing commands and APIs are unaffected.**
+
+**Fixed**
+- The comments in `scripts/build-codepage.ps1` held **15 non-ASCII bytes** (five common Traditional characters), so
+  the script was violating the very rule it demonstrates. They are now Unicode code points (pure ASCII), and
+  `test:codepage` verifies that those five characters really are not in cp20936.
+- **A hole in the shipped-file scan is closed**: it used to walk only the `files` whitelist in `package.json`, while
+  **`package.json` itself ships without being in its own whitelist** — so the file that is read on every install had
+  never been scanned (measured: its description held a string equal to a local folder name, and that is how it
+  leaked). It now scans **every text file in the repo** (excluding `node_modules` / `.git` / `.ship-deny.txt`), and a
+  regression test — "leak scan covers package.json" — pins that hole shut. The npm description had that one sentence
+  changed to `an LLM output guard` at the same time (252 / 255 characters, same meaning).
+- **The shipped list was missing two files that `npm run` needs** (caught the first time `test:tarball` was ever run,
+  2026-09-20): `cantonese-allow.json` (the Cantonese axis of `test:repo` reads it; not shipped → 135 false FAILs) and
+  `tools\cards.mjs` (the entry point of `test:cards`; not shipped → `MODULE_NOT_FOUND`). Both are the
+  "always fine in the checkout, broken in what the user receives" kind; both ship now (**58 → 61 files**: those two
+  plus the new `scripts\tarball-selftest.mjs`), and each has its own guard: `scripts\tarball-selftest.mjs` (which
+  really unpacks the tarball and runs `npm test` inside it) plus a static check in `test:api` (every `npm run` entry
+  point must be in the `files` whitelist).
+
+**Tests**
+- `test:api` went from 61 to 81 checks:
+  - "**the repo's own byte rules**" — walk the repo (skipping `node_modules` / `.git`), read the **raw bytes** and
+    confirm every `.ps1` is pure ASCII and every `.cmd` / `.bat` is pure ASCII with CRLF, after first proving that
+    both detectors really can go red (reading the files as text hides the difference, which is why this one has to
+    work at the byte level). **It caught a real violation the first time it ran** (the `build-codepage.ps1` above) —
+    not a synthetic case.
+  - Three regression tests: `package.json` must be inside the leak scan's coverage; the npm-description example in
+    `PUBLISHING.md` must be **character-for-character identical** to the `description` in `package.json` (measured:
+    that example was missing its last sentence, and nothing could tell at the time); and every `npm run` entry point
+    must be in the whitelist (that is the two missing files above).
+  - **Anything the scan skips must also be gitignored**: the scan and git are two separate protections, and when each
+    assumes the other will catch it, that is exactly when it goes wrong (measured: `.board/` held absolute paths, the
+    scan skipped it, and it was **not ignored** → one `git add -A` would have leaked it).
+  - **Counts written in prose are machine-checked** (11 rows): the expected values are **computed from the data
+    files** (never copied from the prose — a copy would satisfy itself and never go red), they are checked
+    **file by file** (`49,257` … `3,083` each carry their own list), and only numbers large enough to be worth
+    searching for are pinned (the small ones became "shape of the data" assertions). Both ways of breaking it were
+    measured: changing `README.md`'s `2,637` to `2,636` → red; cutting one phrase from `japanese-only.json`
+    (`123` → `122`) → red, listing all five files. It also caught **three mistakes in the hand-written mapping table
+    itself**.
+- **New `npm run test:tarball`** (`scripts\tarball-selftest.mjs`): pack → unpack → run `npm test` again inside the
+  unpacked package, and assert that no maintainer file is in the tarball (`PUBLISHING.md`, the cards,
+  `.ship-deny.txt`, `tools\cards.config.mjs`). **It caught something genuinely broken the first time it ran.** It is
+  deliberately not part of `npm test` (it packs and unpacks, about 15 seconds) but sits in the pre-publish checklist
+  (§1).
+- `test:plugin`'s settings card went from 24 to 34 checks:
+  - 14 behavioural cases for `inspectFileType` (pure ASCII passes, `.md` / `read` does not trigger, `.cmd` with
+    `block` still only warns, CRLF passes while bare LF triggers), 3 mount cases on a real cordis waterfall, and the
+    card's fourth radio group plus its **collapsed header line** following `fileTypes`.
+  - **Both layers have their own tests**: `apply()` must not let an error escape when a host service is broken, and
+    it **must speak up**; when the card render throws, the boundary must draw the reason and the underlying message.
+    The test side gained a **mini renderer** (one that calls function / class components and runs boundaries in
+    React's order) plus `React.Component`, and it collects the expected log lines into an array before asserting
+    (`stderr` 0 lines). Both layers were **verified by breaking them on purpose**: removing the boundary → red;
+    making `apply`'s catch rethrow → red.
+  - **Both routes for the header icon are pinned**: when the host provides
+    `@deepseek-ai/dsh-client-ui-primitives` (a **virtual module**, supplied by the web frontend's bundle, like
+    `react`) it draws the icon, and when it does not it draws the text `▾`.
+
+**Documentation**
+- **The README is now English-first, with the Chinese version in its own file** (2026-09-26): `README.md` was
+  rewritten in English (section for section, the same content as the original Chinese, keeping the headline numbers
+  `2,637` / `3,083` / `367` / `123`), and **that is the file the npm package page and the GitHub front page show**;
+  the original Chinese text moved to `README.zh.md` (which is listed in the `files` whitelist now too. **It always
+  shipped anyway**: npm always adds a root `README*`, so that line only writes the existing fact down — the package
+  page itself still renders `README.md` only), and both files gained a link row at the top pointing at each other;
+  **the pack list therefore went from 61 to 62 files**. `cantonese-allow.json` gained one entry for
+  `**/README.zh.md` (the Chinese version quotes Cantonese examples the same way). The lines that deliberately show
+  Simplified or Japanese examples still carry `simplified-example` / `check-ok` — without them the three axes of
+  `test:repo` go red.
+- `README.md`'s write-guard section gained these two file-type rules and their defaults;
+  `references/integration.md` gained the `fileTypes` configuration, the three deliberate design choices, and
+  **two gaps that are still open** (the `hooks.json` route does not have this rule, and the CLI has no
+  `--file-types`).
+- Maintainer side: this project's card guard was renamed (`tools\docs.mjs` → `tools\cards.mjs`,
+  `docs.config.mjs` → `cards.config.mjs`, `test:docs` → `test:cards`, the old names still work); `VERIFICATION.md`
+  (round-by-round evidence) and `installDocs` (the red light for install docs and fallback) were added.
+  **None of that ships** — the only shipped file that changed along with it is `scripts\api-selftest.mjs`.
+- Hand-off cards moved to a **folder layout** (`CARD/{active,blocked,done,todo}`) plus new card fields
+  (`done` needs `verified_at`, `blocked` needs `blocked_since`, a publishing-position card needs `facts`).
+  Cards **do not ship**, and `test:tarball` explicitly forbids `CARD/` from appearing in the tarball.
+- Two hand-off cards (`NEXT-write-rules.md`, `NEXT-file-type-guard.md`) entered version control for the first time;
+  their local paths were cleaned out first — `PUBLISHING.md` §5 had listed them in the index all along, which on a
+  public repo amounts to pointing at files that do not exist.
 ```
 
 ### 1.2.0 — 本機 LLM 的輸出把關、執行時編碼風險、出貨守門
