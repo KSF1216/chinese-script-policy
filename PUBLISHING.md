@@ -579,6 +579,7 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 | `NEXT-client-half-hardening.md` | 瀏覽器那半的兩層防護：`apply()` 包 try/catch、卡片加 error boundary（boundary **只保護它包住的東西**） | **done**（2026-09-20：兩層都實作，測試 27 → 34 項，兩層各自故意弄壞驗證過） |
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
 | `VERIFICATION-chinese-script-policy.md` | **驗證立場**（對應的新卡種 `VERIFICATION-*`，2026-09-22 填成真的）：現在有機械在釘的面（逐面列指令與規模）＋ **必填的「未涵蓋」**（沒在驗的、只驗過一次的） | **active**（站著的） |
+| `LESSON-shell-chinese-bypasses-the-guard.md` | **教訓**（`LESSON-*` 在本 repo 的第一張，2026-09-26）：命令列裡的中文**繞過兩層寫入守門**（`git tag -m`／`git commit -m` 的訊息不經 hook，而 `test:repo` 只掃工作區的檔案、掃不到 git 物件） | **active**（紀錄，不關） |
 
 **`VERIFICATION-chinese-script-policy.md`**（2026-09-22 填成真的）——它原本是產生器留下的**沒填過的骨架**：
 `cards` 少了 `VERIFICATION-*.md` 這個 glob，所以那張卡既不載入、也沒人發現它的 `acceptance`／`facts`

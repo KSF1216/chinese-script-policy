@@ -87,3 +87,44 @@ bump 版號 → 重建 `dist/tradzh.html` → §6 發布說明改寫成 1.3.1（
 
 **還沒做**：`npm publish`（人的動作）；發布後要 `git tag v1.3.1` ＋ GitHub Release（body 取 §6）
 ＋ 更新 PUBLISHING 卡的 `facts`（registry 查詢與輸出）＋ 把發布卡 `stamp`／`sync-folders` 移到 `done`。
+
+## 第三輪（2026-09-26）：README 改英文為主、發布 1.3.1、結案
+
+**做了什麼**：① `README.md` 改寫成**英文**（採 ds-harness-remote 的節奏，章節與原中文版一對一），
+原本的中文原文搬成 `README.zh.md`、兩邊開頭互連，`cantonese-allow.json` 跟著放行新檔；
+② 使用者在自己的終端機發布 **1.3.1**，本輪查證 registry 之後把發布卡結案
+（`stamp` ＋ `sync-folders` → `CARD/done/`）；③ 結案讓 `breaktest` 的錨點失效，改指站著的 `PUBLISHING-*` 卡。
+
+**實測數字（2026-09-26，全部當輪實跑）**：
+
+| 查證 | 結果 |
+|---|---|
+| `npm view chinese-script-policy dist-tags.latest gitHead` | `latest = 1.3.1`、`gitHead = 9b653eb…`（發布時間 03:16:08Z） |
+| `npm pack chinese-script-policy@1.3.1 --dry-run --json` | **62 檔**；`README.md` 與 `README.zh.md` **兩份都在**線上 tarball 裡 |
+| `git ls-remote --tags origin` | `v1.3.1` → `9b653eb`（annotated、已推） |
+| `npm test` | 10 個子命令全綠（`test:repo` 三軸、`test:api` 81 checks、`test:cards` 3 卡 0 問題） |
+| `npm run test:tarball` | PASS；`62 files, 1356 KB`，解開後 `npm test` 也是 0 |
+| `npm run audit` | `RESULT: clean`（Big5 可編的 35 字全在審核名單裡） |
+| `node tools\cards.mjs breaktest` | 5 個案例全部 caught，還原後 exit 0（附三支檔案的 SHA-256） |
+
+**故意弄壞**：`breaktest` 換錨點之後重跑一次，`missing reference`／`illegal status`／
+`dependency on a missing card`／`orphan card`／`blocked card without blocked_by` 五條都確認會紅。
+
+**修掉的問題與教訓**：
+
+1. **發布成功被誤判成失敗——同一個坑第二次**。03:16:08Z 發布（log：`PUT 202` ＋ `exit 0` ＋ `info ok`），
+   03:16:52Z 與 03:17:49Z 查 `latest` 還是 `1.2.0`、`GET /<pkg>/1.3.1` 回 **404**，約 **03:19Z** 才跳版；
+   而 `PUBLISHING.md` §4 早就寫過這件事。本輪把實測時間補進去（「約一分鐘」→「約 1～3 分鐘」），
+   判準改成**先看 log 的 `PUT 202` ＋ `info ok`，再等 registry**。
+2. **整份 README 換語言時，被釘住的東西要一起搬**：`test:api` 逐檔要求 `README.md` 出現
+   `2,637`／`3,083`／`367`／`123`，`test:repo` 的三軸會掃裡面的示範字例（簡體要
+   `simplified-example`、日文要 `check-ok`）——英文版照樣要帶，漏了當場紅。
+3. **`breaktest` 的錨點不可以綁在會結案的卡上**：發布卡一進 `CARD/done/`（歷史不載入），
+   五個案例就同時失去意義。已改指站著的 `PUBLISHING-*`，並把「blocked 少了 `blocked_by`」
+   改成「把活卡的 `status` 翻成 `blocked`」。
+4. **命令列裡的中文繞過寫入守門**：我下 `git tag -a … -m` 時把註解打成了**簡體**（原文與實測在教訓卡裡），
+   推到遠端才發現（tag 物件 `e3c37cd`），刪掉重打（改走 `-F <UTF-8 檔>`）才修好
+   → `CARD/active/LESSON-shell-chinese-bypasses-the-guard.md`。
+
+**還沒做**：**1.3.1 的 GitHub Release 還沒建**（這台沒有 `gh`、GitHub API 要 token；
+發布說明已抽成檔案給人貼）。本 repo 沒有 `OPEN-` 卡。

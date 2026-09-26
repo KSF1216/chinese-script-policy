@@ -8,12 +8,13 @@ acceptance: |
 facts: |
   `npm test`                          ->  10 個子命令全綠（8 支 selftest ＋ `test:repo` 的三條字表掃描 ＋ `test:cards`、當輪實測）
   `npm run test:tarball`              ->  PASS: the tarball a user receives passes the suite and ships no maintainer file
-                                          ok the tarball holds no maintainer-only file (61 files, 1344 KB) ／ ok npm test passes inside the unpacked tarball
-  `node tools\cards.mjs`              ->  cards: 4 card(s), 0 problem(s)
+                                          ok the tarball holds no maintainer-only file (62 files, 1356 KB) ／ ok npm test passes inside the unpacked tarball
+  `node tools\cards.mjs`              ->  cards: 3 card(s), 0 problem(s)
+  `npm view chinese-script-policy dist-tags.latest` -> 1.3.1（2026-09-26 發布；在那之前 latest 是 1.2.0）
   `node scripts\api-selftest.mjs`     ->  PASS: every documented web-application entry point exists and both recipes agree (81 checks)
   `node scripts\web-selftest.mjs`     ->  PASS: the page converts exactly like the CLI, its UI works, conversions leave the original text alone, and the committed copy is not stale (170 checks)
   `node scripts\tradzh.js --dir .`    ->  RESULT: clean - no Simplified-only glyphs (2637 glyphs checked)
-updated: 2026-09-22
+updated: 2026-09-26
 ---
 
 # 驗證立場：chinese-script-policy 現在「驗到哪裡」是站著的說法
@@ -36,18 +37,20 @@ updated: 2026-09-22
 | CLI 契約（參數、輸出形狀、離開碼） | `scripts/cli-selftest.mjs` | 全綠 |
 | 寫入前 hook（**只有 `exit 2` 會擋**） | `scripts/hook-selftest.mjs` | 全綠 |
 | DSH 外掛（client half 自我註冊、settings 卡、寫入守衛） | `scripts/plugin-selftest.mjs` | 41 ＋ 34 ＋ 4 checks |
-| 公開檔案不得出現機器特定路徑／專案名／模型名 | `scripts/api-selftest.mjs` | 80 checks（needle 來自未版控的 `.ship-deny.txt`） |
+| 公開檔案不得出現機器特定路徑／專案名／模型名 | `scripts/api-selftest.mjs` | 81 checks（needle 來自未版控的 `.ship-deny.txt`） |
 | 代理那條線（`examples/llm-proxy`） | `scripts/proxy-selftest.mjs` | 30 checks |
 | 離線頁與 CLI 的轉換結果一致、頁面不陳舊 | `scripts/web-selftest.mjs` | 170 checks |
 | 字表掃描（簡體殘留／粵語口語／日文專有字詞） | `npm run test:repo` | 2637 個簡體字；17 ＋ 30 ＋ 15 ＋ 3 條粵語；367 ＋ 123 條日文 |
-| 交接卡（引用存在、狀態合法、孤兒卡、卡種齊全） | `node tools\cards.mjs` | 4 張活卡、0 問題 |
-| **使用者真的收到的那一份**（tarball 解開再跑一次整套） | `npm run test:tarball` | 61 檔、1344 KB |
+| 交接卡（引用存在、狀態合法、孤兒卡、卡種齊全） | `node tools\cards.mjs` | 3 張活卡、0 問題 |
+| **使用者真的收到的那一份**（tarball 解開再跑一次整套） | `npm run test:tarball` | 62 檔、1356 KB |
 
 ## 未涵蓋（沒在驗的，別假裝有）
 
-- **`npm publish` 沒有被任何人跑過**：`package.json` 已是 `1.3.1`（2026-09-22 備好、頁尾也重建了），
-  但 registry 上仍是 **1.2.0**——`1.3.0` 從未發布、永久不用。這不是測試能補的（它是人的動作），
-  卡在 `CARD/blocked/NEXT-release-1.3.1.md`。
+- **`npm publish` 是人的動作，測試證明不了它**：1.3.1 已於 2026-09-26 由使用者發布
+  （查證見 `CARD/active/PUBLISHING-chinese-script-policy.md` 的 `facts`），但「發出去了」這件事
+  永遠只能靠**查 registry** 主張——沒有任何一條測試會因為「忘記發布」而變紅。
+- **1.3.1 的 GitHub Release 還沒建**（2026-09-26）：這台沒有 `gh`、GitHub API 要 token，
+  所以那一步也是人的動作；發布說明已抽成檔案（`%TEMP%\chinese-script-policy-1.3.1-release.md`）。
 - **四個露出點不會同時更新**（本機／GitHub／Pages／npm）：測試只看得到本機那一份，
   「改了出貨檔案、別的地方還是舊的」在測試裡**沒有症狀**。
 - **語意品質不在驗證範圍**：字表掃描只說「沒有簡體殘留、沒有粵語口語、沒有日文專有字詞」，
