@@ -126,5 +126,8 @@ bump 版號 → 重建 `dist/tradzh.html` → §6 發布說明改寫成 1.3.1（
    推到遠端才發現（tag 物件 `e3c37cd`），刪掉重打（改走 `-F <UTF-8 檔>`）才修好
    → `CARD/active/LESSON-shell-chinese-bypasses-the-guard.md`。
 
-**還沒做**：**1.3.1 的 GitHub Release 還沒建**（這台沒有 `gh`、GitHub API 要 token；
-發布說明已抽成檔案給人貼）。本 repo 沒有 `OPEN-` 卡。
+**還沒做**：**發布那條線上的步驟都做完了**——`npm publish`（1.3.1，03:16Z）與 GitHub Release
+（03:58Z，body 取自 §6 的英文段）都已完成；兩者都是人的動作、都只能靠查詢主張（沒有任何測試會因為
+「忘記發布」而變紅）。剩下的未完成項是**社群目錄投稿**（`awesome-dsh-plugin`：目錄檔
+`KSF1216__chinese-script-policy.yml` 在 main 上仍是 404、也沒有來自 `KSF1216` 的 PR），見 `PUBLISHING.md` §7。
+本 repo 沒有 `OPEN-` 卡。

@@ -66,7 +66,7 @@ npm pack --dry-run   # 62 檔（多了 cantonese-allow.json 與 tools/cards.mjs�
 | 已發布 tarball 檔案數 | **62** | `npm view …@1.3.1 dist.fileCount`；`npm pack chinese-script-policy@1.3.1 --dry-run --json` |
 | tarball 裡的兩份 README | **`README.md` 與 `README.zh.md` 都在** | 同上（逐檔列出） |
 | git tag | `v1.3.1` → `9b653eb`（annotated、已推） | `git ls-remote --tags origin` |
-| GitHub Release | **尚未建立**（這台沒有 `gh`，API 要 token） | body 已抽成檔案：`%TEMP%\chinese-script-policy-1.3.1-release.md`（＝`PUBLISHING.md` §6 的 1.3.1 段，9,249 bytes） |
+| GitHub Release | 建立時**尚未**（這台沒有 `gh`，API 要 token）→ **2026-09-26T03:58:48Z 已建立** | body 取自 `PUBLISHING.md` §6 的 1.3.1 英文段（10,617 字元）；`GET releases/tags/v1.3.1` 可查 |
 
 **⚠️ 一個新事實（不記住的話，下一次會把成功誤判成失敗）**：npm 發布**成功**的長相是
 `PUT 401` → 三段式驗證（`GET /-/v1/done` 每 0.2 秒輪詢，`202` ＝ 還沒按）→ 按下安全金鑰後 `GET … done` 回 **`200`**

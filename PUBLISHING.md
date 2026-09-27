@@ -247,7 +247,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
 | npm | **`latest` = `1.3.1`**（2026-09-26 03:16Z 發布，**62 檔**、shasum `c2f2022e…`；tarball 同時帶 `README.md` 與 `README.zh.md`）。上一個版本是 `1.2.0`（58 檔、`e571b2d5…`）。`1.0.0`／`1.1.0`／`1.1.1` 已 unpublish、`1.3.0` 從未發布——**這四個版號永久保留、不會再用**；被刪版本的 tarball 實測 **404** |
 | npm（發布紀錄） | 1.3.1 由**使用者在自己的終端機**發布（2026-09-26 03:16:08Z；agent 跑必然 `EOTP` 且網址被遮蔽成 `***`）。發布前四道全綠：`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**62 檔**）；發布後的逐項查證在已結案的發布卡裡 |
-| git tag／Release | **`v1.3.1`**（annotated，指向 npm 記錄的 `gitHead` ＝ `9b653eb`，已推）與 **`v1.2.0`**（＋ 1.2.0 的 GitHub Release）。⚠️ **1.3.1 的 GitHub Release 還沒建**——這台沒有 `gh`、API 要 token，body 已抽成檔案給人貼（§6）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
+| git tag／Release | **`v1.3.1`**（annotated，指向 npm 記錄的 `gitHead` ＝ `9b653eb`，已推）與 **`v1.2.0`**（＋ 1.2.0 的 GitHub Release）。**1.3.1 的 GitHub Release 已建立**（2026-09-26T03:58:48Z，body ＝ §6 的 1.3.1 英文段；`releases` API 可查）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
@@ -580,6 +580,7 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
 | `VERIFICATION-chinese-script-policy.md` | **驗證立場**（對應的新卡種 `VERIFICATION-*`，2026-09-22 填成真的）：現在有機械在釘的面（逐面列指令與規模）＋ **必填的「未涵蓋」**（沒在驗的、只驗過一次的） | **active**（站著的） |
 | `LESSON-shell-chinese-bypasses-the-guard.md` | **教訓**（`LESSON-*` 在本 repo 的第一張，2026-09-26）：命令列裡的中文**繞過兩層寫入守門**（`git tag -m`／`git commit -m` 的訊息不經 hook，而 `test:repo` 只掃工作區的檔案、掃不到 git 物件） | **active**（紀錄，不關） |
+| `NEXT-market-submission.md` | 社群目錄投稿（`awesome-dsh-plugin`）：目錄檔在 `main` 上仍是 404、也沒有來自 `KSF1216` 的 PR——**發布那條線唯一還沒做的一步** | **blocked**（要動你的 GitHub 帳號開 PR；`-DryRun` 已完成） |
 
 **`VERIFICATION-chinese-script-policy.md`**（2026-09-22 填成真的）——它原本是產生器留下的**沒填過的骨架**：
 `cards` 少了 `VERIFICATION-*.md` 這個 glob，所以那張卡既不載入、也沒人發現它的 `acceptance`／`facts`
@@ -993,6 +994,10 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 ---
 
 ## 7. 上架社群市集（`awesome-dsh-plugin` 目錄，2026-09-18 查證）
+
+> **現況（2026-09-26 實測）**：還沒被收錄——目錄檔 `data/plugins/KSF1216__chinese-script-policy.yml`
+> 在 `main` 上是 **404**，PR 清單（`state=all`）也沒有來自 `KSF1216` 的紀錄。
+> **狀態與待辦在 `CARD/blocked/NEXT-market-submission.md`**（那一張是唯一來源；這一節只寫怎麼投）。
 
 **DSH 本體沒有市集**——在 DSH checkout 裡搜過檔名、目錄與文件，`marketplace` 完全不存在。
 市集是社群做的，但**共用同一份目錄**：

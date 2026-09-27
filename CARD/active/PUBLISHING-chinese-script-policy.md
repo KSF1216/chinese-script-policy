@@ -10,7 +10,7 @@ acceptance: |
 facts: |
   `npm view chinese-script-policy dist-tags.latest gitHead` -> latest = 1.3.1、gitHead = 9b653eb…（2026-09-26 03:16:08Z 發布；`…@1.3.1 dist.fileCount` -> **62**，tarball 同時帶 README.md 與 README.zh.md）
   `node -e "console.log(require('./package.json').version)"` -> 1.3.1（本機與 registry 現在同版）
-  `git ls-remote --tags origin` -> v1.2.0 -> 62fb395、v1.3.1 -> 9b653eb（都已推；**1.3.1 的 GitHub Release 還沒建**）
+  `git ls-remote --tags origin` -> v1.2.0 -> 62fb395、v1.3.1 -> 9b653eb（都已推）；`GET releases/tags/v1.3.1` -> **已建立**（2026-09-26T03:58:48Z，body 10,617 字元＝§6 的英文段）
   `Invoke-WebRequest https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> HTTP 200、頁尾 v1.3.1（Pages 跟 repo，不跟 npm）
   `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
   `node tools\cards.mjs board` -> project／publishing／verification 三張 active（發布卡 2026-09-26 已 done，移出活卡集合）

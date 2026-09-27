@@ -49,8 +49,9 @@ updated: 2026-09-26
 - **`npm publish` 是人的動作，測試證明不了它**：1.3.1 已於 2026-09-26 由使用者發布
   （查證見 `CARD/active/PUBLISHING-chinese-script-policy.md` 的 `facts`），但「發出去了」這件事
   永遠只能靠**查 registry** 主張——沒有任何一條測試會因為「忘記發布」而變紅。
-- **1.3.1 的 GitHub Release 還沒建**（2026-09-26）：這台沒有 `gh`、GitHub API 要 token，
-  所以那一步也是人的動作；發布說明已抽成檔案（`%TEMP%\chinese-script-policy-1.3.1-release.md`）。
+- **GitHub Release 也是人的動作、也只能查證**：1.3.1 的 Release 已建立
+  （2026-09-26T03:58:48Z，`GET releases/tags/v1.3.1`），但這裡**沒有一條測試**會因為它不存在而變紅
+  ——所以「有沒有建」永遠要重新查一次 API，不要憑上一次的輸出。
 - **四個露出點不會同時更新**（本機／GitHub／Pages／npm）：測試只看得到本機那一份，
   「改了出貨檔案、別的地方還是舊的」在測試裡**沒有症狀**。
 - **語意品質不在驗證範圍**：字表掃描只說「沒有簡體殘留、沒有粵語口語、沒有日文專有字詞」，
