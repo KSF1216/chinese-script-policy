@@ -8,10 +8,24 @@
 #     so a DSH profile needs no hook bridge at all: the guard runs in this
 #     process, reads the same lib.js the CLI does, and is switchable from the GUI.
 #
-# The `config` below is the guard's base layer. A settings card writes the user
-# layer on top of it, so the switches can be changed from the GUI without editing
-# this file or restarting anything. The same values, and the same reasoning, live
-# in index.mjs (resolveSection).
+# The `id` below is load-bearing on DSH 0.1.7: the settings namespace IS the
+# profile entry id, and the GUI asks the host for the form of exactly this entry
+# (`ctx.configForms.get('chinese-script-policy')`). A row without an `id` gets a
+# random one from the loader, and no form can ever address it.
+#
+# The `config` below is the guard's BASE layer; on 0.1.7 a card write lands in the
+# ACTIVE PROFILE's own cordis.patch.yml ($DSH_HOME/profiles/<name>/, a different
+# file from this one, which ships inside the package), so the switches can be
+# changed from the GUI without editing this file or restarting anything, and each
+# profile keeps its own values. The old $DSH_HOME/settings.yaml no longer holds
+# plugin settings: 0.1.7 imports that document once and renames it to
+# settings.yaml.imported.
+#
+# Every field of the module's exported `Config` is `.volatile()`, so an accepted
+# edit is written into the SAME reference objects the running plugin holds and the
+# plugin is NOT remounted - which is why index.mjs reads `field.get()` at the
+# moment of use instead of caching a value during apply(). The same values, and
+# the same reasoning, live in index.mjs (resolveSection).
 #
 # The package name carries no `dsh-` prefix on purpose: the skill is not
 # DSH-specific, and dsh resolves a bundle purely by the `dsh.bundle` key in

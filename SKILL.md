@@ -83,7 +83,7 @@ $b = [IO.File]::ReadAllBytes('x.ps1')
 
 | Harness | 做法 |
 |---|---|
-| **DSH** | 裝成外掛：`dsh plugin --profile <名> add <本套件目錄>`（**每個 profile 各裝一次**，裝一次只影響那一個）。守衛、技能註冊與 GUI 開關都在那一列裡——**不需要**再掛 hook 橋接器 |
+| **DSH** | 裝成外掛：`dsh plugin --profile <名> add <本套件目錄>`（**每個 profile 各裝一次**，裝一次只影響那一個）。守衛、技能註冊與 GUI 開關都在那一列裡——**不需要**再掛 hook 橋接器。設定卡在 **Plugins 頁**，值存進**該 profile 自己的 `cordis.patch.yml`**（`$DSH_HOME/profiles/<名>/`），所以每個 profile 可以各存一種軸；linked 安裝要靠套件宣告的 `peerDependencies` 才載得起來，細節見 `references/integration.md` |
 | **Claude Code 等相容 harness** | `hooks.json` 直接可用（`PreToolUse` ＋ matcher `write\|edit` ＋ exit 2），放到專案的 `.claude/hooks.json` |
 | **不支援 hook 的 harness** | 沒有機械強制力 → 改成「寫完自己跑 `node scripts/tradzh.js <檔案>` 複查」，並把本規範寫進該 harness 的系統提示或 `AGENTS.md` |
 
@@ -170,9 +170,12 @@ OpenCC 也列為新字體，但 **Big5（cp950）收得下**，也就是繁體�
 所以「繁體」與「簡體」**永遠只會用其中一邊，不會兩邊都用**。
 **CLI 的檢查預設只有「要求繁體」**（`--variant traditional`），要檢查粵語或日文要自己加
 `--written`／`--japanese`；**網頁預設開「要求繁體 ＋ 書面語 ＋ 日文」**（「要求簡體」預設關）；
-**寫入 hook 把主軸固定在「要求繁體」，並連同兩條副軸一起把關**；**DSH 外掛可在設定卡把腳本軸三選一**
-（要求繁體／要求簡體／不檢查）——但設定卡是**全機器一份**（存進 `$DSH_HOME/settings.yaml`，
-不分 profile、也不分工作區），不是每個專案一份。
+**寫入 hook 把主軸固定在「要求繁體」，並連同兩條副軸一起把關**；**DSH 外掛可以在 Plugins 頁的設定卡
+把腳本軸三選一**（要求繁體／要求簡體／不檢查）——那張卡寫的是**該 profile 自己的
+`cordis.patch.yml`**（`$DSH_HOME/profiles/<名>/`），所以 `web` 與 `headless` 可以各存一種，
+**不再是全機器一份**；`$DSH_HOME/settings.yaml` 那條路在 0.1.7 已經沒有了（它被一次性匯入後
+改名成 `settings.yaml.imported`）。**每個 profile 要各裝一次外掛**，`headless` 沒有 GUI，
+它的開關就直接改那個檔案。
 ⚠️ **兩個方向同時開沒有意義**：實測把繁體文字餵給「要求簡體」那一側會中 3 個字
 （U+5F8C U+8EDF U+6DE8），兩邊都開等於每一份中文文件都會被擋。
 

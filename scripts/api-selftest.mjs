@@ -411,7 +411,14 @@ console.log('terminology: the settled names are pinned, because they regressed t
   // workspaces (it holds absolute paths by design, which is why it must never ship). It is
   // excluded here for the same reason `node_modules` is: it is not one of our files.
   // `test:tarball` forbids it independently, so this exclusion cannot hide a shipped leak.
-  const SKIP = new Set(['node_modules', '.git', DENY_FILE, '.board']);
+  //
+  // `.tmp` is the same kind of thing and joined the list on 2026-09-28, for a measured
+  // reason: a scratch script left there by a session (it held absolute paths) turned this
+  // scan red, and the failure could only be fixed by DELETING someone else's work in
+  // progress. The scan's job is files that can ship, and `.tmp/` cannot: `files` in
+  // package.json never lists it and `test:tarball` would reject it. A guard that fires on
+  // scratch space is a false alarm, and false alarms are what make people stop reading it.
+  const SKIP = new Set(['node_modules', '.git', DENY_FILE, '.board', '.tmp']);
   // ...but skipping a directory in the LEAK SCAN is only safe if git also refuses to track it.
   // Otherwise the scan looks away while `git add -A` stages absolute paths into a public repo
   // (found 2026-09-22: `.board/board.json` held 14 absolute user-path strings and was untracked

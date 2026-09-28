@@ -3,18 +3,22 @@ id: verification-chinese-script-policy
 status: active
 acceptance: |
   npm test
+  npm run test:boot
   npm run test:tarball
   node tools\cards.mjs
 facts: |
   `npm test`                          ->  10 個子命令全綠（8 支 selftest ＋ `test:repo` 的三條字表掃描 ＋ `test:cards`、當輪實測）
+  `npm run test:boot`                 ->  PASS: the plugin boots, serves its settings namespace, its client bundle runs, and a write reaches the profile patch
+                                          （丟棄式 $DSH_HOME＋port；零 pending／failed、19 個 namespace 含本外掛、68 個 client bundle 評估成功、寫入落到 cordis.patch.yml、舊 revision 被拒）
   `npm run test:tarball`              ->  PASS: the tarball a user receives passes the suite and ships no maintainer file
-                                          ok the tarball holds no maintainer-only file (62 files, 1356 KB) ／ ok npm test passes inside the unpacked tarball
-  `node tools\cards.mjs`              ->  cards: 3 card(s), 0 problem(s)
-  `npm view chinese-script-policy dist-tags.latest` -> 1.3.1（2026-09-26 發布；在那之前 latest 是 1.2.0）
+                                          ok the tarball holds no maintainer-only file (64 files, 1375 KB) ／ ok npm test passes inside the unpacked tarball
+  `node tools\cards.mjs`              ->  cards: 5 card(s), 0 problem(s)
+  `npm view chinese-script-policy dist-tags.latest` -> 1.3.1（registry 的事實；本 repo 已備好 1.4.0 但**尚未發布**）
   `node scripts\api-selftest.mjs`     ->  PASS: every documented web-application entry point exists and both recipes agree (81 checks)
+  `node scripts\plugin-selftest.mjs`  ->  守衛 43 ／ 設定卡 44 ／ settings schema 14 checks，全過
   `node scripts\web-selftest.mjs`     ->  PASS: the page converts exactly like the CLI, its UI works, conversions leave the original text alone, and the committed copy is not stale (170 checks)
   `node scripts\tradzh.js --dir .`    ->  RESULT: clean - no Simplified-only glyphs (2637 glyphs checked)
-updated: 2026-09-26
+updated: 2026-09-28
 ---
 
 # 驗證立場：chinese-script-policy 現在「驗到哪裡」是站著的說法
@@ -36,15 +40,22 @@ updated: 2026-09-26
 | 字碼頁（cp950／GBK 來回） | `scripts/codepage-selftest.mjs` | 全綠 |
 | CLI 契約（參數、輸出形狀、離開碼） | `scripts/cli-selftest.mjs` | 全綠 |
 | 寫入前 hook（**只有 `exit 2` 會擋**） | `scripts/hook-selftest.mjs` | 全綠 |
-| DSH 外掛（client half 自我註冊、settings 卡、寫入守衛） | `scripts/plugin-selftest.mjs` | 41 ＋ 34 ＋ 4 checks |
+| DSH 外掛（client half 自我註冊、settings 卡、寫入守衛、**注入的服務名必須存在**） | `scripts/plugin-selftest.mjs` | 43 ＋ 44 ＋ 14 checks |
+| **外掛在真的 DSH 上活不活得起來**（宿主無 pending、namespace 真的被服務、client bundle 跑得完、寫入真的落到 profile patch） | `npm run test:boot`（`dev/dsh-boot-check.mjs`，起丟棄式實例） | 4 組檢查、當輪 PASS |
 | 公開檔案不得出現機器特定路徑／專案名／模型名 | `scripts/api-selftest.mjs` | 81 checks（needle 來自未版控的 `.ship-deny.txt`） |
 | 代理那條線（`examples/llm-proxy`） | `scripts/proxy-selftest.mjs` | 30 checks |
 | 離線頁與 CLI 的轉換結果一致、頁面不陳舊 | `scripts/web-selftest.mjs` | 170 checks |
 | 字表掃描（簡體殘留／粵語口語／日文專有字詞） | `npm run test:repo` | 2637 個簡體字；17 ＋ 30 ＋ 15 ＋ 3 條粵語；367 ＋ 123 條日文 |
-| 交接卡（引用存在、狀態合法、孤兒卡、卡種齊全） | `node tools\cards.mjs` | 3 張活卡、0 問題 |
-| **使用者真的收到的那一份**（tarball 解開再跑一次整套） | `npm run test:tarball` | 62 檔、1356 KB |
+| 交接卡（引用存在、狀態合法、孤兒卡、卡種齊全） | `node tools\cards.mjs` | 5 張活卡、0 問題 |
+| **使用者真的收到的那一份**（tarball 解開再跑一次整套） | `npm run test:tarball` | 64 檔、1375 KB |
 
 ## 未涵蓋（沒在驗的，別假裝有）
+
+- **真實瀏覽器裡的那張卡沒有機械在驗**：`test:boot` 驗到「bundle 評估得完、模組有註冊」，
+  `plugin-selftest` 用**假的** React 驅動卡片（渲染、點擊、儲存都走過一次），
+  但**沒有任何測試會開一個真的瀏覽器**把 DOM 畫出來。所以「卡片在你的 Chrome 裡長什麼樣、
+  點下去會不會動」仍然只有人能看——差別是**失敗的形狀已經被釘住了**（pending／namespace 沒被服務／
+  整包跑不完都會紅），剩下的風險是外觀與互動細節。
 
 - **`npm publish` 是人的動作，測試證明不了它**：1.3.1 已於 2026-09-26 由使用者發布
   （查證見 `CARD/active/PUBLISHING-chinese-script-policy.md` 的 `facts`），但「發出去了」這件事

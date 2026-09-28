@@ -14,7 +14,7 @@ export const config = {
   // 但 pattern 漏了它，於是「有專案卡卻沒有驗證立場」這條規則一直紅著——漏一個 glob
   // 就是漏一整套檢查，這正是 `kind-coverage` 存在的理由）。
   cards: [
-    'CARD/*/NEXT-*.md', 'CARD/*/OPEN-*.md', 'CARD/*/DECISION-*.md',
+    'CARD/*/PLAN-*.md', 'CARD/*/NEXT-*.md', 'CARD/*/OPEN-*.md', 'CARD/*/DECISION-*.md',
     'CARD/*/PROJECT-*.md', 'CARD/*/LESSON-*.md', 'CARD/*/REQ-*.md', 'CARD/*/TEST-*.md',
     'CARD/*/PUBLISHING-*.md', 'CARD/*/VERIFICATION-*.md',
   ],

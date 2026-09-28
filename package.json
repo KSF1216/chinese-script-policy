@@ -1,6 +1,6 @@
 {
   "name": "chinese-script-policy",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bundle, CLI). One script axis either way + Cantonese/Japanese-only filters. Converts both ways; optional wording preference. Also: an LLM output guard, cp950/GBK console scan.",
   "license": "MIT",
   "author": "Matthew Kwan <319604871+KSF1216@users.noreply.github.com>",
@@ -43,6 +43,7 @@
     "third_party",
     "dist/tradzh.html",
     "tools/cards.mjs",
+    "dev/dsh-boot-check.mjs",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md",
     "README.md",
@@ -56,10 +57,13 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-slots"
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
       ],
       "platform": "web"
     }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4"
   },
   "scripts": {
     "test": "node scripts/selftest.js && node scripts/codepage-selftest.mjs && node scripts/cli-selftest.mjs && node scripts/hook-selftest.mjs && node scripts/plugin-selftest.mjs && node scripts/api-selftest.mjs && node scripts/proxy-selftest.mjs && node scripts/web-selftest.mjs && npm run test:repo && npm run test:cards",
@@ -81,6 +85,7 @@
     "build:codepage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-codepage.ps1",
     "test:web": "node scripts/web-selftest.mjs",
     "test:tarball": "node scripts/tarball-selftest.mjs",
+    "test:boot": "node dev/dsh-boot-check.mjs",
     "stats": "node scripts/stats.js",
     "llm-guard-proxy": "node examples/llm-proxy/llm-guard-proxy.mjs"
   },

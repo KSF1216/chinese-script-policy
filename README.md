@@ -50,11 +50,11 @@ In other words, **only the two "keep it running" paths need an install** (the DS
 | **Offline page** | Two checkboxes: **Traditional (report Simplified glyphs) ✅ on by default** / **Simplified (report Traditional glyphs) ⬜ off by default** | ✅ on | ✅ on |
 | **CLI** | `--variant traditional` (default, reports Simplified glyphs) / `--variant simplified` (reports Traditional glyphs) | needs `--written` | needs `--japanese` |
 | **Write hook** (Claude Code format) | **fixed to "ask for Traditional"** (blocks Simplified glyphs) — it has no Simplified side | ✅ | ✅ |
-| **DSH plugin** (GUI settings card) | **one of three**: ask for Traditional (default) / ask for Simplified / do not check | each can be turned off | each can be turned off |
+| **DSH plugin** (card on the **Plugins** page) | **one of three**: ask for Traditional (default) / ask for Simplified / do not check | each can be turned off | each can be turned off |
 
 **⚠️ Never turn both directions on**: feeding **Traditional** text (`後面的軟件很乾淨`) to the "ask for Simplified" side reports 3 glyphs (U+5F8C U+8EDF U+6DE8) — with both on, **every Chinese document is blocked**.
 
-That is to say: **the CLI checks only the Traditional direction of the script axis by default**, and Cantonese and Japanese have to be asked for; **the web page turns on the Traditional direction plus Cantonese plus Japanese** (the Simplified direction stays off); **the hook fixes the script axis to "ask for Traditional" and applies both filters with it**; and **the DSH plugin lets you pick one of the three on the settings card**.
+That is to say: **the CLI checks only the Traditional direction of the script axis by default**, and Cantonese and Japanese have to be asked for; **the web page turns on the Traditional direction plus Cantonese plus Japanese** (the Simplified direction stays off); **the hook fixes the script axis to "ask for Traditional" and applies both filters with it**; and **the DSH plugin lets you pick one of the three on its card (on the Plugins page)**.
 
 **Conversion** — the direction, and every step that can change meaning, are yours to ask for; **only the two steps that leave the text itself unchanged are automatic**:
 
@@ -95,14 +95,18 @@ A new session sees it (DSH watches the directory live; no restart needed).
 ```powershell
 dsh plugin --profile web add chinese-script-policy            # published on npm
 dsh plugin --profile web add github:KSF1216/chinese-script-policy
-dsh plugin --profile web add ./chinese-script-policy-1.2.0.tgz
+dsh plugin --profile web add ./chinese-script-policy-1.4.0.tgz
 ```
 
 > Installing straight from GitHub makes pnpm ask for an `allowBuilds` entry in that profile's `pnpm-workspace.yaml` (which amounts to allowing this package's code to run at install time). Use npm or the tarball if you would rather not be asked.
 
+> **Two DSH 0.1.7 details decide whether it works at all.** The row this bundle inserts carries `id: chinese-script-policy`, and on 0.1.7 **that entry id IS the settings namespace**: the card asks the host for the form of exactly that entry, so a row without an `id` can never be edited from the GUI. And the host half imports `@deepseek-ai/schemastery` to declare its `Config` schema, which a **linked** install (`dsh plugin add <directory>`) can only resolve if the package **declares** it — hence the `peerDependencies` entry in `package.json`. Without it the host half fails to load, that row never becomes active, and the guard dies **without a sound** (the skill goes with it).
+
 > **One install affects one profile.** `web` and `headless` each have their own `dsh.profile.bundles`, so run it **once per shell** you want guarded (change `--profile`).
-> **`headless` has no GUI**, so a settings card there is meaningless — use the `config` row of `cordis.patch.yml` or `settings.yaml` instead; the guard itself works the same (the same `tools/pre-execute`).
-> ⚠️ The settings card writes the **global** user layer (the `chinese-script-policy:` block in `$DSH_HOME/settings.yaml`, **not per profile**), so flipping a switch in the GUI changes **every profile at once**.
+> **`headless` has no GUI**, so a settings card there is meaningless — set the switches in that profile's own `cordis.patch.yml` instead; the guard itself works the same (the same `tools/pre-execute`).
+> ⚠️ A card write lands in the **active profile's `cordis.patch.yml`** (`$DSH_HOME/profiles/<name>/`), so the switches are **per profile**: flipping one in the GUI changes the profile you are running in, and the other keeps its own value. (The old `$DSH_HOME/settings.yaml` no longer holds plugin settings — 0.1.7 imports that document **once** and renames it to `settings.yaml.imported`. On upgrade, a `chinese-script-policy:` block there is imported into the entry of the same id, which is why the schema still accepts the old boolean spelling of `script`, so a profile patch written by 1.0–1.1 keeps loading.)
+
+> **Check the install instead of trusting it** (`npm run test:boot`, i.e. `node dev\dsh-boot-check.mjs`): it boots a **throwaway** DSH with its own `$DSH_HOME` and port — your `~/.dsh` is not touched — and asserts three things: nothing was parked at boot, `settings/describe` really serves our namespace, and the served client bundle evaluates and registers our module. `--keep` keeps the scratch directory; `--url http://127.0.0.1:3099 --home <scratch home>` attaches to an instance that is already running.
 
 ### Other harnesses and the command line
 
@@ -135,7 +139,7 @@ The complete feature × command × explanation table (including `--wording`, `--
 | Front end **inside your own app** (check as you type) | `scripts/core.js` plus `scripts/*.json` | `import { createCore } from 'chinese-script-policy/core'` and inject the tables yourself (there is no fs) |
 | Server on **Node** (Express / Next / Nuxt / Workers) | `scripts/lib.js` (reads its own tables) | `import { scanText, toTraditional, guardInspect } from 'chinese-script-policy/lib'` |
 | Server **not on JS** (PHP / Python / Java) | `scripts/tradzh.js` | Call it as a subprocess, or hand the work to the browser page |
-| **Do not use** | `index.mjs` (the DSH plugin), `lib/client.js` (the DSH settings card) | The latter touches `window` on import and throws `window is not defined` under Node |
+| **Do not use** | `index.mjs` (the DSH plugin), `lib/client.js` (the browser half of the DSH card) | The latter touches `window` on import and throws `window is not defined` under Node |
 
 ```js
 // server: check and convert (ESM and CJS both work)
@@ -167,11 +171,11 @@ The pre-write check is **one decision** (`guardInspect` / `guardMessage` in `scr
 
 | Installation | Who it is for | Switches and configuration |
 |---|---|---|
-| **DSH plugin** (recommended) | DSH | The GUI settings card: enabled, one of three script choices, the register and Japanese switches, block versus warn, **Windows script file types** (`.ps1` / `.cmd`, below) — **applied the moment you save**. The card is **global** (one change affects every profile); **each profile needs its own install**, and `headless` has no GUI, so its switches go in YAML |
+| **DSH plugin** (recommended) | DSH | The card on the **Plugins** page: enabled, one of three script choices, the register and Japanese switches, block versus warn, **Windows script file types** (`.ps1` / `.cmd`, below) — **applied the moment you save, with no restart** (the fields are `volatile`, so an accepted change is written into the running configuration instead of remounting the plugin). It is a **per-profile** card: it writes the profile's own `cordis.patch.yml`, so `web` and `headless` can hold different answers; **each profile needs its own install**, and `headless` has no GUI, so its switches go in that file by hand |
 | **Claude Code / other harnesses** | Any harness speaking the same hook protocol | Use this package's `hooks.json` (`PreToolUse` with matcher `write\|edit`) |
 | **Environments without hooks** | Everything else | Re-check yourself after writing with `node scripts\tradzh.js <file>`, and put the policy in the system prompt |
 
-Besides Chinese characters, **Windows script file types** carry two more write rules: `.ps1` must be **pure ASCII**, and `.cmd` / `.bat` must be **pure ASCII with CRLF** — because PowerShell 5.1 and cmd.exe both read scripts as ANSI, and UTF-8 Chinese without a BOM turns a `.ps1` into a syntax error. The rule is in `SKILL.md` under "file-type traps"; the cause and the measurements are in `references/encoding.md`. The **DSH plugin warns only** by default for these writes; the settings card can change that to "block" or "off" — but "block" only ever applies to a `.ps1` that would really break, while `.cmd` / `.bat` (which usually still run) always warn.
+Besides Chinese characters, **Windows script file types** carry two more write rules: `.ps1` must be **pure ASCII**, and `.cmd` / `.bat` must be **pure ASCII with CRLF** — because PowerShell 5.1 and cmd.exe both read scripts as ANSI, and UTF-8 Chinese without a BOM turns a `.ps1` into a syntax error. The rule is in `SKILL.md` under "file-type traps"; the cause and the measurements are in `references/encoding.md`. The **DSH plugin warns only** by default for these writes; its card can change that to "block" or "off" — but "block" only ever applies to a `.ps1` that would really break, while `.cmd` / `.bat` (which usually still run) always warn.
 
 The details (the full `hooks.json`, why `pluginRoot` must be given, and four things you can achieve without editing the tables) are in [`references/integration.md`](https://github.com/KSF1216/chinese-script-policy/blob/main/references/integration.md).
 

@@ -25,3 +25,9 @@ dist/*
 # scan could not have warned (it skips the directory). scripts/api-selftest.mjs now FAILS if a
 # skipped directory is not listed here.
 .board/
+
+# Scratch space for probes and for dev/dsh-boot-check.mjs's throwaway DSH home.
+# It is not shipped either way (`files` in package.json never listed it), but it
+# must stay out of `git add -A` for the same reason the board output does: these
+# files hold absolute paths from this machine.
+.tmp/

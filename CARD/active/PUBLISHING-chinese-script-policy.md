@@ -9,12 +9,12 @@ acceptance: |
   npm pack --dry-run
 facts: |
   `npm view chinese-script-policy dist-tags.latest gitHead` -> latest = 1.3.1、gitHead = 9b653eb…（2026-09-26 03:16:08Z 發布；`…@1.3.1 dist.fileCount` -> **62**，tarball 同時帶 README.md 與 README.zh.md）
-  `node -e "console.log(require('./package.json').version)"` -> 1.3.1（本機與 registry 現在同版）
+  `node -e "console.log(require('./package.json').version)"` -> **1.4.0（本機；尚未發布）**，registry 的 latest 仍是 1.3.1——**兩者現在不同版**，這是 2026-09-28 備好 DSH 0.1.7 移植之後的正常中間狀態（發布前的事實欄就該這樣寫，不要寫成「已發布 1.4.0」）
   `git ls-remote --tags origin` -> v1.2.0 -> 62fb395、v1.3.1 -> 9b653eb（都已推）；`GET releases/tags/v1.3.1` -> **已建立**（2026-09-26T03:58:48Z，body 10,617 字元＝§6 的英文段）
   `Invoke-WebRequest https://ksf1216.github.io/chinese-script-policy/dist/tradzh.html` -> HTTP 200、頁尾 v1.3.1（Pages 跟 repo，不跟 npm）
   `(Get-Item "$env:USERPROFILE\.dsh\skills\chinese-script-policy").LinkType` -> Junction（本機 DSH 直接吃工作區，不是安裝副本；`web` 與 `headless` 的 `link:` 都指到它）
-  `node tools\cards.mjs board` -> project／publishing／verification 三張 active（發布卡 2026-09-26 已 done，移出活卡集合）
-updated: 2026-09-26
+  `node tools\cards.mjs board` -> project／publishing／verification／lesson 四張 active ＋ blocked 的 market-submission（發布卡 2026-09-26 已 done，移出活卡集合）
+updated: 2026-09-28
 ---
 
 # 發布立場：chinese-script-policy 出到哪裡、現在「已發布」是什麼意思

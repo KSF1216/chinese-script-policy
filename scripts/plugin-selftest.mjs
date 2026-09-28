@@ -12,7 +12,7 @@
 // (nothing to test). Exits 1 on a real contract failure.
 import { createRequire } from 'node:module'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -45,6 +45,38 @@ if (!modulesRoot) {
   console.log('SKIP: @deepseek-ai/dsh-skill not found (no DSH install to test against)')
   console.log('      pass the path explicitly: node scripts/plugin-selftest.mjs <node_modules>')
   process.exit(0)
+}
+
+// index.mjs imports the HARNESS's schemastery (its `Config` schema). Under DSH a
+// linked bundle resolves that bare specifier through the harness's peer-aware
+// ancestor lookup, which needs no node_modules of our own; a plain Node test has
+// no such route, so the peer is materialized here: the hook points the specifier
+// at exactly the file DSH would hand the plugin, and only for importers inside
+// this checkout (the harness packages keep resolving their own copy untouched).
+// Without it the import below fails with ERR_MODULE_NOT_FOUND and every check in
+// this file would report "harness error" instead of testing anything.
+const PEER = '@deepseek-ai/schemastery'
+const repoRootUrl = pathToFileURL(join(here, '..')).href
+try {
+  const { registerHooks } = await import('node:module')
+  // Resolve the ESM entry the way Node would for an importer inside the harness:
+  // read the package's own exports map rather than guessing a file name.
+  const peerPkgPath = join(modulesRoot, '@deepseek-ai', 'schemastery', 'package.json')
+  const peerPkg = JSON.parse(readFileSync(peerPkgPath, 'utf8'))
+  const root = peerPkg.exports && peerPkg.exports['.']
+  const rel = typeof root === 'string' ? root : (root && (root.import ?? root.default)) ?? peerPkg.main
+  const peerUrl = pathToFileURL(join(dirname(peerPkgPath), rel)).href
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier === PEER && String(context.parentURL ?? '').startsWith(repoRootUrl)) {
+        return { url: peerUrl, shortCircuit: true }
+      }
+      return nextResolve(specifier, context)
+    },
+  })
+} catch (error) {
+  console.log('NOTE: could not register the ' + PEER + ' peer hook (' + error.message +
+    '); the entry import below may fail')
 }
 
 const load = (p) => import(pathToFileURL(p).href)
@@ -245,47 +277,76 @@ try {
       'the mounted listener did not deny a .ps1 with fileTypes:"block": ' + JSON.stringify(ps1Denied))
   }
 
-  // Settings wiring: the row config is the base layer, the card writes the user
-  // layer, and the listener must read whichever is current.
+  // Settings wiring. In DSH 0.1.7 the switches ARE the module's own Config, so
+  // what the host half must get right is narrower - and one half of it is a rule
+  // that breaks silently:
+  //   * every read goes through `.get()` at the moment of use. The loader commits
+  //     a volatile change into the SAME reference objects and never re-runs
+  //     apply(), so a value cached during apply() would freeze the switch at
+  //     whatever it was at boot. The flips below are exactly that test.
+  //   * `settings.configure({ auto: false })` is asked for through a CHILD
+  //     context, and 'settings' must never appear in the module-level inject: a
+  //     declared-but-absent service parks the whole plugin, guard included.
   const captured = {}
+  const fields = { enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true, fileTypes: 'warn' }
+  const liveConfig = {}
+  for (const key of Object.keys(fields)) liveConfig[key] = { get: () => fields[key] }
   const fakeCtx = {
     skills: { register: () => () => {} },
     effect: (fn) => { fn(); return () => {} },
-    inject: (names, cb) => cb({ settings: { installSection: (...args) => { captured.section = args } } }),
+    inject: (names, cb) => {
+      captured.injected = names
+      return cb({
+        settings: { configure: (...args) => { captured.policy = args } },
+        effect: (fn) => { fn(); return () => {} },
+      })
+    },
     on: (evt, fn) => { captured.listener = fn },
-    logger: { warn: () => {} }
+    logger: { warn: () => {} },
+    fiber: {},
   }
-  plugin.apply(fakeCtx, { mode: 'block' })
-  guard(Array.isArray(captured.section) && captured.section[1] === plugin.SETTINGS_NAMESPACE,
-    'the settings section was not installed under the expected namespace')
+  plugin.apply(fakeCtx, liveConfig)
+  guard(Array.isArray(captured.injected) && captured.injected.length === 1 && captured.injected[0] === 'settings',
+    'the settings policy must ride a child context injecting only settings: ' + JSON.stringify(captured.injected))
+  guard(!plugin.inject.includes('settings'),
+    'the module-level inject must never name settings (an absent service parks the whole plugin)')
+  guard(Boolean(captured.policy) && captured.policy[0] && captured.policy[0].auto === false,
+    'the host half must ask settings.configure({auto:false}) when it ships its own page: ' + JSON.stringify(captured.policy))
   guard(typeof captured.listener === 'function', 'no tools/pre-execute listener was registered')
   if (typeof captured.listener === 'function') {
     let nextCalls = 0
     const next = () => { nextCalls++; return Promise.resolve({ kind: 'allow' }) }
     const first = await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
     guard(first && first.kind === 'deny' && nextCalls === 0, 'the listener did not deny before next()')
-    // The settings card flips the switches: warn mode must let the write through.
-    captured.section[4].setSource(() => plugin.resolveSection({ mode: 'warn' }))
+    // The GUI flips a switch: the loader writes the new value into the SAME
+    // reference, so the very next check must see it - no remount, no restart.
+    fields.mode = 'warn'
     const warned = await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
-    guard(warned && warned.kind === 'allow' && nextCalls === 1, 'warn mode still denied the write')
-    captured.section[4].setSource(() => plugin.resolveSection({ enabled: false }))
+    guard(warned && warned.kind === 'allow' && nextCalls === 1,
+      'a volatile mode flip was not picked up (the value was cached during apply)')
+    fields.enabled = false
     await captured.listener({ name: 'write', arguments: { content: '我听见了。' } }, next)  // check-ok
-    guard(nextCalls === 2, 'enabled:false did not let the write through')
+    guard(nextCalls === 2, 'a volatile enabled:false flip did not let the write through')
   }
 } catch (e) {
   problems.push('guard error: ' + e.message)
 }
 
 // ---------------------------------------------------------------------------
-// Settings. The GUI card exists only for a namespace the HOST describes: the tab
-// renders the intersection of "namespaces describe() serves" and "cards
-// registered into settings.plugin.item". A schema that breaks describe()
-// therefore removes the card silently - and takes every other card in the tab
-// with it. That is exactly what happened once: the hand-rolled resolver had no
-// toJSON(), so describe() threw "registration.schema.toJSON is not a function".
-// So: mount the real settings service and its file provider (into a temp
-// document, never the user's settings.yaml) and check the namespace is really
-// described.
+// The declared settings schema. Two things are checked, because they fail in
+// different places:
+//
+//   * the schema itself - every field volatile (that is what puts this entry on
+//     the Plugins page AND what makes the loader commit a change in place), a
+//     serializable toJSON(), and defaults that agree with the guard;
+//   * that the settings core can WALK it. A schema it cannot walk is how the
+//     previous API took every card in that tab down, not just this one, so the
+//     projection's own redaction walk is driven here with the real code.
+//
+// Whether OUR namespace shows up in describe() is a property of a composed
+// Loader tree (describe() lists loader entries and demands a unique direct child
+// of the root include), so that half is verified against a real DSH instance,
+// not faked here.
 // ---------------------------------------------------------------------------
 let settingsChecks = 0
 let settingsProblems = 0
@@ -298,47 +359,76 @@ const setting = (ok, message) => {
 }
 
 try {
-  const asWrapped = (mod, fallback) => (typeof mod.apply === 'function'
-    ? { name: mod.name ?? fallback, inject: mod.inject, apply: mod.apply }
-    : mod.default)
-  const cordis3 = await load(join(modulesRoot, '@deepseek-ai', 'cordis', 'lib', 'index.js'))
-  const Context3 = cordis3.Context ?? cordis3.default?.Context ?? cordis3.default
   const pluginMod = asPlugin(await load(join(here, '..', 'index.mjs')))
+  const CONFIG_FIELDS = ['enabled', 'mode', 'script', 'register', 'japanese', 'fileTypes']
+  const schema = pluginMod.Config
+  // A schemastery schema is CALLABLE (it validates by being called), so "is it an
+  // object" would be the wrong question.
+  setting(typeof schema === 'function' || (Boolean(schema) && typeof schema === 'object'),
+    'the host half exports no Config schema, so the entry can never be edited')
+  const dict = schema && schema.dict ? schema.dict : {}
+  for (const field of CONFIG_FIELDS) {
+    const entry = dict[field]
+    setting(Boolean(entry) && entry.meta && entry.meta.volatile === true,
+      'Config field "' + field + '" is not volatile (the Plugins page would ignore it)')
+  }
+  let json = null
+  try {
+    json = schema && typeof schema.toJSON === 'function' ? schema.toJSON() : null
+  } catch (error) {
+    setting(false, 'Config.toJSON() threw: ' + String(error.message).split('\n')[0])
+  }
+  setting(json !== null && typeof json === 'object',
+    'Config.toJSON() did not produce an object (the settings projection needs one)')
 
-  const ctx3 = new Context3()
-  ctx3.plugin(asWrapped(await load(join(modulesRoot, '@deepseek-ai', 'dsh-settings', 'lib', 'index.js')), 'settings'))
-  ctx3.plugin(asWrapped(await load(join(modulesRoot, '@deepseek-ai', 'dsh-settings-file', 'lib', 'index.js')), 'settings-file'),
-    { path: join(tmpdir(), 'chinese-script-policy-selftest-settings.yaml') })
-  // Our plugin injects 'skills'; a stub keeps this test off the skill registry.
-  ctx3.reflect.provide('skills', { register: () => () => {} })
-  await new Promise((r) => setTimeout(r, 80))
-  const service = ctx3.get('settings')
-  setting(service !== undefined, 'the settings service did not come up in the test harness')
-  setting(typeof pluginMod.resolveSection.toJSON === 'function',
-    'the settings resolver has no toJSON(), which is what makes describe() throw')
+  // The defaults the browser shows before anything is stored must be the same
+  // defaults the guard already uses - two spellings of "default" is how a card
+  // ends up describing a guard that is not the one running.
+  let fromSchema = null
+  try {
+    const resolved = schema({})
+    fromSchema = {}
+    for (const field of CONFIG_FIELDS) fromSchema[field] = resolved[field].get()
+  } catch (error) {
+    setting(false, 'resolving the empty config through Config threw: ' + String(error.message).split('\n')[0])
+  }
+  if (fromSchema) {
+    setting(JSON.stringify(pluginMod.resolveSection(fromSchema)) === JSON.stringify(pluginMod.resolveSection(undefined)),
+      'the schema defaults and resolveSection defaults disagree: ' + JSON.stringify(fromSchema))
+  }
+  // A profile written by 1.0-1.1 stored this axis as a boolean; a schema that
+  // rejects it would fail the entry at boot, which means no guard at all.
+  try {
+    const legacy = schema({ script: false })
+    setting(legacy.script.get() === false, 'the legacy script:false did not survive the schema')
+    setting(pluginMod.resolveSection(legacy).script === 'off',
+      'the legacy script:false no longer means script:"off" after the schema')
+  } catch (error) {
+    setting(false, 'a legacy script:false no longer validates: ' + String(error.message).split('\n')[0])
+  }
+  // ...and a value outside the declared set must still be refused, or the schema
+  // is not describing anything.
+  let refused = false
+  try {
+    schema({ mode: 'whatever' })
+  } catch {
+    refused = true
+  }
+  setting(refused, 'the schema accepted an undeclared mode value')
 
-  ctx3.plugin(pluginMod, { enabled: true })
-  await new Promise((r) => setTimeout(r, 250))
-
-  if (service) {
-    let described = null
-    try {
-      described = service.describe()
-    } catch (e) {
-      setting(false, 'describe() threw: ' + String(e.message).split('\n')[0])
+  // The settings core's own walk over the schema (secrets are stripped from every
+  // value it projects). If our schema shape is unusable this is where it shows.
+  try {
+    const settingsMod = await load(join(modulesRoot, '@deepseek-ai', 'dsh-settings', 'lib', 'index.js'))
+    const redactSecrets = settingsMod.redactSecrets ?? settingsMod.default?.redactSecrets
+    setting(typeof redactSecrets === 'function', 'dsh-settings no longer exports redactSecrets')
+    if (typeof redactSecrets === 'function') {
+      const walked = redactSecrets(schema, { enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true, fileTypes: 'warn' })
+      setting(Boolean(walked) && typeof walked === 'object',
+        'the settings core could not walk our schema: ' + JSON.stringify(walked))
     }
-    if (described) {
-      setting(described.some((d) => d.ns === pluginMod.SETTINGS_NAMESPACE),
-        'our namespace is not in describe(): ' + JSON.stringify(described.map((d) => d.ns)))
-    }
-    try {
-      service.describe({ redactSecrets: true })
-    } catch (e) {
-      setting(false, 'describe({redactSecrets:true}) threw: ' + String(e.message).split('\n')[0])
-    }
-    const value = service.get(pluginMod.SETTINGS_NAMESPACE)
-    setting(Boolean(value) && value.enabled === true && value.mode === 'block',
-      'the described section did not resolve to the row config: ' + JSON.stringify(value))
+  } catch (error) {
+    setting(false, 'the settings core could not walk our schema: ' + String(error.message).split('\n')[0])
   }
 } catch (e) {
   problems.push('settings error: ' + e.message)
@@ -404,8 +494,8 @@ try {
   const browserPlugin = definition ? definition.factory((id) => (id === 'react' ? React : {})) : null
   card(browserPlugin && typeof browserPlugin.apply === 'function', 'the factory did not return a plugin')
   card(Array.isArray(browserPlugin && browserPlugin.inject) && browserPlugin.inject.includes('slots') &&
-    browserPlugin.inject.includes('settingsScope'),
-    'the browser half must inject slots and settingsScope: ' + JSON.stringify(browserPlugin && browserPlugin.inject))
+    browserPlugin.inject.includes('configForms'),
+    'the browser half must inject slots and configForms: ' + JSON.stringify(browserPlugin && browserPlugin.inject))
 
   let registered = null
   // The card's header line is composed from the REAL dictionary (captured here from
@@ -417,7 +507,26 @@ try {
   // name and these checks compared key names instead of the shipped strings.
   let dictionaries = {}
   let localeName = 'zh'
-  const settingsSnapshot = { value: {}, writable: true }
+  const settingsSnapshot = { value: {}, writable: true, status: 'ready', mode: 'host', revision: 1 };
+  // The services this DSH CLIENT actually provides. Pinned on purpose: an
+  // `inject` entry no client service implements does not merely hide our card -
+  // the browser's boot audit throws on any parked client entry, so the whole GUI
+  // fails to load. That is exactly how the 0.1.6 spelling `settingsScope`
+  // (removed in 0.1.7) broke the page. Only extend this against a real client's
+  // service keys (the keys cordis-client-runner reports as its context).
+  const CLIENT_SERVICES = ['slots', 'locale', 'configForms', 'remote', 'sessions', 'layout', 'theme', 'timer', 'uiWorkspace', 'workspaces', 'uiRenderer', 'modules'];
+  // Every accepted write the card asks for, in order, so the save path can be
+  // asserted rather than eyeballed.
+  const writes = [];
+  const formOf = (snapshot) => ({
+    getSnapshot: () => snapshot,
+    subscribe: () => () => {},
+    set: async (field, value) => { writes.push({ op: 'set', path: [field], value }) },
+    unset: async (field) => { writes.push({ op: 'unset', path: [field] }) },
+    mutate: async (ops, revision) => { writes.push({ ops, revision }) },
+  });
+  const askedNamespaces = []
+  const injectedSlots = []
   const clientCtx = {
     locale: {
       bind: () => (key) => {
@@ -427,23 +536,37 @@ try {
       register: (ns, registered) => { dictionaries = registered; return () => {} },
     },
     effect: (fn) => { fn(); return () => {} },
-    settingsScope: {
-      bind: () => ({
-        getSnapshot: () => settingsSnapshot,
-        set: async () => {},
-        unset: async () => {},
-      }),
+    configForms: {
+      get: (namespace) => { askedNamespaces.push(namespace); return formOf(settingsSnapshot) },
+      // The real service registers only while the host serves the namespace; the
+      // stand-in serves it immediately, because that is the branch this test is
+      // about (a card that never registers is a different test).
+      whileServed: (namespaces, register) => { askedNamespaces.push(...namespaces); return register(new Set(namespaces)) },
     },
     slots: {
-      inject: (name, generator) => { for (const step of generator()) void step },
+      inject: (name, callback) => { injectedSlots.push(name); return callback() },
       register: (options, component) => { registered = { options, component }; return () => {} },
     },
   }
   browserPlugin.apply(clientCtx)
-  card(registered !== null && registered.options.name === 'settings.plugin.item',
-    'the card did not register into settings.plugin.item')
-  card(registered !== null && registered.options.key === 'chinese-script-policy',
-    'the card key is not the settings namespace: ' + JSON.stringify(registered && registered.options))
+  card(browserPlugin.inject.every((name) => CLIENT_SERVICES.includes(name)),
+    'the browser half injects a service this DSH client does not provide (the whole GUI would fail to boot): ' +
+    JSON.stringify(browserPlugin.inject.filter((name) => !CLIENT_SERVICES.includes(name))))
+  card(browserPlugin.inject.includes('slots') && browserPlugin.inject.includes('configForms'),
+    'the browser half must inject slots and configForms: ' + JSON.stringify(browserPlugin.inject))
+  card(registered !== null && registered.options.name === 'plugins.item',
+    'the card did not register into plugins.item')
+  card(registered !== null && registered.options.id === 'chinese-script-policy',
+    'the card id is not the settings namespace: ' + JSON.stringify(registered && registered.options))
+  card(registered !== null && typeof registered.options.label === 'function' &&
+    registered.options.label() === dictionaries.zh.title,
+    'the card label must come from the dictionary (the page draws it while collapsed): ' +
+    JSON.stringify(registered && registered.options && registered.options.label && registered.options.label()))
+  card(askedNamespaces.includes('chinese-script-policy'),
+    'the card never asked for our own namespace: ' + JSON.stringify(askedNamespaces))
+  card(injectedSlots.includes('plugins.item'), 'the card was not registered into the plugins.item slot')
+  card(registered === null || !('key' in registered.options),
+    'a list slot is addressed by id, not by key: ' + JSON.stringify(registered && registered.options))
 
   // The card must behave like the shipped ones: an <li> whose header collapses the
   // body. The open flag starts as `false`, so the fake React's useState is nudged
@@ -509,15 +632,11 @@ try {
     const captures = []
     const ctx = {
       ...clientCtx,
-      settingsScope: {
-        bind: () => ({
-          getSnapshot: () => {
-            if (broken) throw new Error('settings store unavailable')
-            return settingsSnapshot
-          },
-          set: async () => {},
-          unset: async () => {},
-        }),
+      configForms: {
+        get: () => (broken
+          ? { getSnapshot: () => { throw new Error('settings store unavailable') }, subscribe: () => () => {} }
+          : formOf(settingsSnapshot)),
+        whileServed: (namespaces, register) => register(new Set(namespaces)),
       },
       slots: { ...clientCtx.slots, register: (options, component) => { captures.push(component); return () => {} } },
       logger: { warn: (line) => reported.push(String(line)) },
@@ -623,6 +742,98 @@ try {
     'without the UI primitives module the header must fall back to the text glyph')
   card(flatten(renderCard(false, {}, { withIcon: true })).some((node) => node.type === ICON_MARKER),
     'when the host provides the UI primitives module the header must render its chevron icon')
+
+  // The page's two views. The Plugins page renders a registered item collapsed as
+  // a one-liner and opened as the form, so `view` decides which - and the
+  // one-liner has to be the SAME sentence the collapsed card shows, not a second
+  // copy of it that can drift.
+  const summaryTree = render(registered.component({ view: 'summary' }))
+  // The fake createElement keeps a single child as an array (real React flattens
+  // it), so a one-element array is the string here.
+  const summary = Array.isArray(summaryTree) && summaryTree.length === 1 ? summaryTree[0] : summaryTree
+  card(typeof summary === 'string' && summary === descriptionOf(collapsed),
+    'view:"summary" must return the collapsed one-liner: ' + JSON.stringify(summary))
+
+  // Saving. This is the newest code here and the easiest to get wrong: 0.1.7
+  // replaced per-field set() with ONE revision-fenced mutate. So the card is
+  // driven through a real edit and a real click, with a stateful stand-in
+  // renderer (the plain fake's useState is inert and could never show a dirty
+  // draft). What must hold: exactly one mutate, carrying the revision the card
+  // read, listing only the field that changed.
+  const driveSave = (storedValues) => {
+    const states = []
+    let cursor = 0
+    let redraw = null
+    const ReactS = {
+      createElement: (type, props, ...children) => ({ type, props, children }),
+      useState: (init) => {
+        const index = cursor++
+        if (!(index in states)) states[index] = typeof init === 'function' ? init() : init
+        return [states[index], (next) => {
+          states[index] = typeof next === 'function' ? next(states[index]) : next
+          if (redraw) redraw()
+        }]
+      },
+      useEffect: () => {},
+      Fragment: 'fragment',
+      Component: FakeComponent,
+    }
+    const capturedComponents = []
+    const askedWrites = []
+    const snapshot = { value: storedValues, writable: true, status: 'ready', mode: 'host', revision: 7 }
+    const ctx = {
+      locale: clientCtx.locale,
+      effect: (fn) => { fn(); return () => {} },
+      configForms: {
+        get: () => ({
+          getSnapshot: () => snapshot,
+          subscribe: () => () => {},
+          set: async (field, value) => { askedWrites.push({ op: 'set', path: [field], value }) },
+          unset: async (field) => { askedWrites.push({ op: 'unset', path: [field] }) },
+          mutate: async (ops, revision) => { askedWrites.push({ ops, revision }) },
+        }),
+        whileServed: (namespaces, register) => register(new Set(namespaces)),
+      },
+      slots: {
+        inject: (name, callback) => callback(),
+        register: (options, component) => { capturedComponents.push(component); return () => {} },
+      },
+      logger: { warn: () => {} },
+    }
+    const mod = definition.factory((id) => (id === 'react' ? ReactS : {}))
+    mod.apply(ctx)
+    let tree = null
+    const draw = () => { cursor = 0; tree = render(ReactS.createElement(capturedComponents[0], { view: 'page' })) }
+    // The setter above needs a target: without this line a click changes the state
+    // array and nothing on screen.
+    redraw = draw
+    draw()
+    // Opened the way a user does it: the header toggles the body, so the form only
+    // exists after this click (a card is collapsed on arrival).
+    const header = flatten(tree).find((n) => n && n.type === 'button' && n.props && n.props['aria-expanded'] === false)
+    if (!header) throw new Error('the card header is missing from the rendered card')
+    header.props.onClick()
+    const modeInputs = flatten(tree).filter((n) => n && n.type === 'input' && n.props && n.props.name === 'chinese-script-policy-mode')
+    const warnRadio = modeInputs.find((n) => n.props.checked === false)
+    if (!warnRadio) throw new Error('the mode radios are missing from the rendered card')
+    warnRadio.props.onChange()
+    const saveButton = flatten(tree).find((n) => n && n.type === 'button' && n.props && n.props.key === 'save')
+    if (!saveButton) throw new Error('the save button is missing from the rendered card')
+    return { click: saveButton.props.onClick(), writes: askedWrites }
+  }
+  try {
+    const driven = driveSave({ enabled: true, mode: 'block', script: 'traditional', register: true, japanese: true, fileTypes: 'warn' })
+    await driven.click
+    card(driven.writes.length === 1,
+      'saving must be exactly one write, got ' + JSON.stringify(driven.writes))
+    card(driven.writes.length === 1 && driven.writes[0].revision === 7,
+      'the write must carry the revision the card read (the conflict fence): ' + JSON.stringify(driven.writes[0]))
+    card(driven.writes.length === 1 &&
+      JSON.stringify(driven.writes[0].ops) === JSON.stringify([{ op: 'set', path: ['mode'], value: 'warn' }]),
+      'the write must carry only the field that changed: ' + JSON.stringify(driven.writes[0] && driven.writes[0].ops))
+  } catch (error) {
+    card(false, 'driving the save path failed: ' + error.message)
+  }
 
   // The two hardening layers. Without them a broken host service costs the user the card -
   // or, for an apply() throw, more than that - with nothing on screen explaining it.

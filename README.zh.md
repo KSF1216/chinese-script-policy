@@ -52,14 +52,14 @@
 | **離線網頁** | 兩個勾選框：**繁體（抓簡體字）✅ 預設開** ／ **簡體（抓繁體字）⬜ 預設關** | ✅ 預設開 | ✅ 預設開 |
 | **CLI** | `--variant traditional`（預設，抓簡體字）／ `--variant simplified`（抓繁體字） | 要 `--written` | 要 `--japanese` |
 | **寫入 hook**（Claude Code 格式） | **固定「要求繁體」**（擋簡體字）——它沒有簡體那一側 | ✅ | ✅ |
-| **DSH 外掛**（GUI 設定卡） | **三選一**：要求繁體（預設）／要求簡體／不檢查 | 可個別關 | 可個別關 |
+| **DSH 外掛**（卡片在側邊欄的 **Plugins 頁**） | **三選一**：要求繁體（預設）／要求簡體／不檢查 | 可個別關 | 可個別關 |
 
 **⚠️ 兩個方向不可以同時開**：實測把**繁體**文字（`後面的軟件很乾淨`）餵給「要求簡體」那一側，
 會中 3 個字（U+5F8C U+8EDF U+6DE8）——兩邊都開等於**每一份中文文件都會被擋**。
 
 也就是說：**CLI 預設只檢查腳本軸的「要求繁體」那一側**，粵語與日文都要自己指定；
 **網頁預設開的是「腳本軸的繁體側 ＋ 粵語 ＋ 日文」**（簡體側預設關）；
-**hook 把主軸固定在「要求繁體」，並連同兩條副軸一起把關**；**DSH 外掛可以在設定卡上把腳本軸三選一**。
+**hook 把主軸固定在「要求繁體」，並連同兩條副軸一起把關**；**DSH 外掛可以在它的卡片（Plugins 頁）上把腳本軸三選一**。
 
 **轉換**——方向與語意變更都要你自己指定；**只有「文字沒變、只是換碼位或字形」的兩件事是自動的**：
 
@@ -101,18 +101,36 @@ git clone https://github.com/KSF1216/chinese-script-policy.git "$env:USERPROFILE
 ```powershell
 dsh plugin --profile web add chinese-script-policy            # 已發布到 npm
 dsh plugin --profile web add github:KSF1216/chinese-script-policy
-dsh plugin --profile web add ./chinese-script-policy-1.2.0.tgz
+dsh plugin --profile web add ./chinese-script-policy-1.4.0.tgz
 ```
 
 > 從 GitHub 直接安裝時，pnpm 會要求你在該 profile 的 `pnpm-workspace.yaml` 加 `allowBuilds`
 > （等於允許安裝時執行本套件的程式碼）。不想被要求就用 npm 或 tarball 安裝。
 
+> **有兩個 DSH 0.1.7 的細節決定它到底掛不掛得上。** 這個組合包插入的那一列帶著
+> `id: chinese-script-policy`，而在 0.1.7 **那個 entry id 就是設定 namespace**：設定卡是拿這個 id
+> 去問宿主「這條 entry 的表單在哪」，所以 row 沒寫 `id` 就永遠無法從 GUI 編輯。另外，
+> 宿主半側要 `import` `@deepseek-ai/schemastery` 才宣告得出 `Config` 這個 schema，而
+> **linked** 安裝（`dsh plugin add <目錄>`）只有在套件**自己宣告**這個 peer 時才解析得到它
+> ——這就是 `package.json` 那行 `peerDependencies` 的用途。少了它，宿主半側載入失敗、
+> 那一列進不了 active，**寫入守衛無聲死掉**（技能也一起不見）。
+
 > **裝一次只影響一個 profile。** `web`、`headless` 各有自己的 `dsh.profile.bundles`，
 > 要在哪個殼把關就在那裡**各跑一次**（把 `--profile` 換掉即可）。
-> **`headless` 沒有 GUI**，設定卡在那裡沒有意義——開關改用 `cordis.patch.yml` 的 row
-> `config` 或 `settings.yaml`，守衛本身照常運作（同一條 `tools/pre-execute`）。
-> ⚠️ 設定卡寫的是**全域** user layer（`$DSH_HOME/settings.yaml` 的
-> `chinese-script-policy:` 區塊，**不分 profile**），在 GUI 改開關會**同時改變所有 profile**。
+> **`headless` 沒有 GUI**，設定卡在那裡沒有意義——開關改寫在那個 profile 自己的
+> `cordis.patch.yml`；守衛本身照常運作（同一條 `tools/pre-execute`）。
+> ⚠️ 設定卡的寫入落在**正在跑的那個 profile** 的 `cordis.patch.yml`
+> （`$DSH_HOME/profiles/<名>/`），所以開關是**每個 profile 一份**：在 GUI 改只影響你正在跑的那個，
+> 另一個 profile 保留自己的值。（舊的 `$DSH_HOME/settings.yaml` 已經不再放外掛設定——0.1.7 把那份文件
+> **一次性匯入**後改名成 `settings.yaml.imported`。升級時，裡面的 `chinese-script-policy:` 區塊會被匯入
+> **同名 entry**，這也是 `script` 的 schema 仍然接受舊版布林拼法的原因：1.0～1.1 寫出來的 profile patch
+> 必須繼續載得起來。）
+
+> **與其相信它裝好了，不如量一次**（`npm run test:boot`，即 `node dev\dsh-boot-check.mjs`）：
+> 它起一個**丟棄式** DSH（自己的 `$DSH_HOME` 與 port，**完全不碰你的 `~/.dsh`**），斷言三件事——
+> 啟動時沒有任何 entry 被 park、`settings/describe` 真的服務我們的 namespace、以及服務出去的
+> client bundle 整包跑得完且我們的模組有註冊。`--keep` 保留暫存目錄；
+> `--url http://127.0.0.1:3099 --home <暫存 home>` 接上一個已經在跑的實例。
 
 ### 其他 harness 與命令列
 
@@ -146,7 +164,7 @@ node scripts\tradzh.js --encoding FILE.md                       # 看編碼
 | 前端要**併進自家 app**（打字即時檢查） | `scripts/core.js` ＋ `scripts/*.json` | `import { createCore } from 'chinese-script-policy/core'`，字表自己注入（沒有 fs） |
 | 後端是 **Node**（Express／Next／Nuxt／Workers） | `scripts/lib.js`（自帶讀表） | `import { scanText, toTraditional, guardInspect } from 'chinese-script-policy/lib'` |
 | 後端**不是 JS**（PHP／Python／Java） | `scripts/tradzh.js` | 呼叫子行程；或把工作丟給瀏覽器那份 HTML |
-| **不要用** | `index.mjs`（DSH 外掛）、`lib/client.js`（DSH 設定卡） | 後者匯入時就碰 `window`，在 Node 會 `window is not defined` |
+| **不要用** | `index.mjs`（DSH 外掛）、`lib/client.js`（DSH 設定卡的瀏覽器半側） | 後者匯入時就碰 `window`，在 Node 會 `window is not defined` |
 
 ```js
 // 後端：檢查與轉換（ESM／CJS 都可以）
@@ -182,7 +200,7 @@ const core = createCore({ simplifiedOnly /* …其餘八份 */ });
 
 | 裝法 | 適合誰 | 開關與設定 |
 |---|---|---|
-| **DSH 外掛**（建議） | DSH | GUI 的設定卡：啟用、腳本三選一、語體與日文開關、擋下／只警告、**Windows 腳本檔類型**（`.ps1`／`.cmd`，見下），**存檔立刻生效**。設定卡是**全域**的（改一次所有 profile 一起變）；**每個 profile 要各裝一次**，`headless` 沒有 GUI → 開關走 YAML |
+| **DSH 外掛**（建議） | DSH | **Plugins 頁**那張設定卡：啟用、腳本三選一、語體與日文開關、擋下／只警告、**Windows 腳本檔類型**（`.ps1`／`.cmd`，見下），**存檔立刻生效、不必重啟**（那些欄位是 volatile，接受的改動寫進執行中的設定參考物件，外掛不會重新掛載）。它是**每個 profile 一份**的卡：寫的是該 profile 自己的 `cordis.patch.yml`，所以 `web` 與 `headless` 可以各存一種；**每個 profile 要各裝一次**，`headless` 沒有 GUI → 開關就手改那個檔案 |
 | **Claude Code／其他 harness** | 支援同一 hook 協定的 harness | 用本套件的 `hooks.json`（`PreToolUse` ＋ matcher `write\|edit`） |
 | **不支援 hook 的環境** | 其他任何環境 | 寫完自己跑 `node scripts\tradzh.js <檔案>` 複查，並把規範寫進系統提示 |
 
@@ -190,7 +208,7 @@ const core = createCore({ simplifiedOnly /* …其餘八份 */ });
 `.cmd`／`.bat` 要**純 ASCII ＋ CRLF**——因為 PowerShell 5.1 與 cmd.exe 都用 ANSI 讀腳本，
 無 BOM 的 UTF-8 中文會讓 `.ps1` 直接變成語法錯誤。規則在 `SKILL.md` 的〈檔案類型陷阱〉，
 成因與實測在 `references/encoding.md`。**DSH 外掛**預設對這種寫入**只警告**；
-設定卡可以改成「擋下」或「關閉」——但「擋下」只對真的會壞的 `.ps1` 生效，
+它的設定卡可以改成「擋下」或「關閉」——但「擋下」只對真的會壞的 `.ps1` 生效，
 `.cmd`／`.bat`（通常仍能執行）永遠只警告。
 
 細節（hooks.json 全文、`pluginRoot` 為什麼一定要給、不改表也能達成的四件事）

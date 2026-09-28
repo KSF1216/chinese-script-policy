@@ -10,7 +10,7 @@
 
 | 裝法 | 適合誰 | 開關與設定 |
 |---|---|---|
-| **DSH 外掛（建議）** | DSH | GUI 的「外掛 → Plugin configuration → 中文用字規範」設定卡：啟用、**腳本三選一**（要求繁體／要求簡體／不檢查）、語體與日文開關、擋下／只警告，**存檔立刻生效**（不必重啟） |
+| **DSH 外掛（建議）** | DSH | 側邊欄 **Plugins 頁**（`plugins.item` slot）的「中文用字規範」設定卡：啟用、**腳本三選一**（要求繁體／要求簡體／不檢查）、語體與日文開關、擋下／只警告、Windows 腳本檔類型，**存檔立刻生效**（不必重啟——那些欄位是 volatile，改動寫進執行中的設定參考物件，外掛不會重新掛載） |
 | **Claude Code／其他 harness** | Claude Code，或支援同一 hook 協定的 harness | 用本套件的 `hooks.json`（`PreToolUse` ＋ matcher `write\|edit`） |
 | **不支援 hook 的環境** | 其他任何環境 | 寫完自己跑 `node scripts\tradzh.js <檔案>` 複查，並把規範寫進系統提示 |
 
@@ -28,6 +28,10 @@ dsh plugin --profile web add C:\path\to\chinese-script-policy
 - **自己**攔 `tools/pre-execute` 做寫入檢查——不必再掛任何 hook 橋接器，
   profile 也不會多出別人的列。
 
+那一列的 `id: chinese-script-policy` 在 0.1.7 是**設定 namespace 本身**：GUI 的設定卡就是拿這個 id
+去問宿主「這條 entry 的表單在哪」（`ctx.configForms.get('chinese-script-policy')`），所以**這個 id 不能省**
+——row 沒寫 `id` 的話 loader 會給一個隨機值，表單永遠定位不到。
+
 **裝一次只影響一個 profile。** 每個 profile 有自己的 `dsh.profile.bundles`，
 所以 `web` 與 `headless` 要**各裝一次**（只換 `--profile`）：
 
@@ -36,45 +40,86 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
 ```
 
 **`headless`（無頭：跑一個任務、印出結果就結束）沒有 GUI**，所以設定卡在那裡沒有意義，
-開關改用上面那段 row `config`（或 `$DSH_HOME/settings.yaml`）。守衛本身照常運作，
+開關改寫在那個 profile 自己的 `cordis.patch.yml`（下一節有三層的完整對照）。守衛本身照常運作，
 因為它跑的是同一條 `tools/pre-execute`；2026-09 實測：headless 下寫入含簡體字的內容被擋下、
 檔案未被建立。無頭也用不到瀏覽器那半（`lib/client.js`）——`package.json` 的 `dsh.client`
 已宣告 `platform: "web"`，而無頭的殼完全不碰 client 模組。
 
-> **⚠️ 設定卡寫的是全域的 user layer。** 它落在 `$DSH_HOME/settings.yaml` 的
-> `chinese-script-policy:` 區塊，**不分 profile**——在 GUI 把腳本軸切成「要求簡體」，
-> headless 也會跟著變。要讓兩個 profile 用**不同**主軸，就別設那個區塊，
-> 改成在各 profile 的 `cordis.patch.yml` 覆寫那一列的 `config`（user layer 會蓋掉它）。
-> 這也是為什麼「這個專案存哪一種寫法」目前是**全機器一份**，而不是每個工作區一份
-> ——三層的完整對照見下一節。
+**想確認「真的裝起來了」**，除了看 GUI，還有一條不必開瀏覽器的端到端檢查（`dev/dsh-boot-check.mjs` 是出貨檔案之一）：
+
+```powershell
+node dev\dsh-boot-check.mjs            # npm run test:boot 是它的別名
+```
+
+它起一個**丟棄式** DSH（自己的 `$DSH_HOME` 與 port，完全不碰你的 `~/.dsh`），依序驗三件事：
+宿主啟動時**沒有任何 entry pending／failed**、`settings/describe` **真的服務我們的 namespace**、
+以及頁面載入的 client bundle **整包可執行、而且我們的模組有註冊自己**。
+`--keep` 保留暫存目錄，`--url http://127.0.0.1:3099 --home <暫存 home>` 則接上一個已經在跑的實例。
+
+### 0.1.7 的 API 形狀：兩半各改了什麼
+
+舊的設定 API 在 0.1.7 **被整個移除、沒有相容層**（全安裝 grep：`settingsScope` 0 命中、
+`installSection` 0 命中），所以這一節對照的是「哪一種寫法在哪一版活著」：
+
+| 位置 | 舊（0.1.6） | 新（0.1.7） |
+|---|---|---|
+| 宿主半側宣告設定 | `ctx.settings.installSection(ctx, ns, schema, config, {…})` ＋ 手寫 descriptor（`toJSON()`／`type`／`dict`） | `export const Config = z.object({…})`（`@deepseek-ai/schemastery`），**六個欄位全部 `.volatile()`** |
+| 要不要自動生成表單 | 由 `installSection` 決定 | `ctx.inject(['settings'], child => child.effect(() => child.settings.configure({ auto: false }, ctx.fiber)))`——「我自己有頁面，不要幫我生成表單」。它在**選用的** `ctx.inject` 子情境裡，所以沒有 `settings` 服務時外掛照常跑；**`settings` 絕不可以寫進模組層 `inject`**（服務缺席時整個外掛被 park） |
+| 讀值 | 區塊物件 | `config.<欄位>.get()`，**每次要用時才讀**（見下面 volatile 那段） |
+| 瀏覽器半側的服務 | `ctx.settingsScope.bind({ namespace })` | `ctx.configForms.get(<profile entry id>)` |
+| 表單的位址 | keyed slot `settings.plugin.item` | list slot `plugins.item`（`id`／`order`／`label`），並用 `ctx.configForms.whileServed([namespace], …)` 包住——宿主沒服務這個 namespace 時，**整張卡不會註冊** |
+| 註冊的元件 | 不收 props | 收 `props.view`：`'summary'` 回**一行字**（卡片折疊時那行），`'page'` 回**整張表單** |
+| 寫入 | 逐欄位 `set()`／`unset()` | **一次原子** `mutate(ops, revision)`；卡片用 `subscribe()` 跟著已接受的值重畫 |
+| client 的 `inject` | `['slots', 'locale', 'settingsScope']` | `['slots', 'locale', 'configForms']`——**寫錯一個名字不是只少一張卡**：瀏覽器的啟動稽核對任何非 active 的模組直接 throw（`web boot: N entries did not activate`），**整個 GUI 起不來**。守衛無聲失效是宿主那一半，兩邊要分開查 |
+
+### 為什麼 linked 安裝一定要宣告 peerDependencies
+
+本套件的宿主半側（`index.mjs`）要 `import z from '@deepseek-ai/schemastery'` 才宣告得出 `Config`
+（0.1.7 的設定表單就是從那個 schema 投影出來的），而 `dsh plugin --profile <名> add <本目錄>`
+裝的是 **`link:` 相依**：Node 用 realpath 解析 bare import，連結過去的目錄與它的上層都**沒有**
+`node_modules`。DSH 的 linked-root peer-aware ancestor lookup **只認宣告在 `package.json` 的 peer 名**
+（而且那個名字要在它的 runtime table 裡），所以
+`"peerDependencies": { "@deepseek-ai/schemastery": "~3.18.4" }` 是**必要條件，不是禮貌**——
+少了它，宿主半側載入失敗、那一列進不了 active，**寫入守衛無聲死掉**（技能也一起不見）。
+版本准入只比對 `@deepseek-ai/dsh` 與 `@deepseek-ai/dsh-*`，所以宣告 schemastery 不會被拒絕。
 
 ### 設定的三個層級：哪一層是全域、哪一層不是
 
 「這個專案存哪一種寫法」（`script`）是守衛自己的設定，但它跟**放行規則**不在同一層。
-這一點實際讓人誤判過：把軸切成「要求簡體」之後，整個 repo 的繁體寫入都被擋，
-看起來像守衛方向反了——其實是**設定與專案不符**，而且那一層是全機器共用的。
+0.1.7 的設定表單**以 profile entry id 當 namespace**，寫入落在那個 profile 的 patch 檔，
+所以**每一層的範圍都跟 0.1.6 不同**：
 
 | 層 | 誰寫的 | 範圍 | 內容 |
 |---|---|---|---|
-| **基底層**（row `config`） | 本套件的 `cordis.patch.yml` | **每個 profile 一份** | 五個開關的預設值 |
-| **使用者層**（設定卡） | GUI 按「儲存」→ `$DSH_HOME/settings.yaml` 的 `chinese-script-policy:` | **全機器一份**（不分 profile、不分工作區） | 蓋掉基底層的值 |
+| **基底層**（bundle 那一列的 `config`） | 本套件自己的 `cordis.patch.yml`（隨套件出貨） | **每個 profile 一份**（每個 profile 各載入一次這個組合包） | 六個開關的預設值 |
+| **profile 層**（設定卡） | GUI 按「儲存」→ `$DSH_HOME/profiles/<名>/cordis.patch.yml` 裡 `chinese-script-policy` 那一列 | **每個 profile 一份**（`web` 與 `headless` 各存各的） | 蓋掉基底層的值 |
 | **放行層** | 工作區根目錄的 `.tradzhignore`、`cantonese-allow.json` | **每個工作區一份** | 哪些檔案／行跳過檢查 |
 
-**為什麼軸是全機器一份**：DSH 這一版只有一個 settings 提供者
-（`@deepseek-ai/dsh-settings-file`，把所有 namespace 收在同一份 `settings.yaml`），
-沒有工作區維度的設定 namespace——`--dump-config` 裡 `settings` 就只有那一列，
-`dsh-workspace` 那一族管的是工作區／檔案／cwd，不是設定。所以**任何外掛的設定卡都是全機器一份**，
-不只是這個守衛；守衛的 `ctx.settingsScope.bind({ namespace })` 也只有 namespace 一個維度。
+> **⚠️ 這一節跟 1.3.x 的說明相反，值得說清楚。** 舊版（DSH 0.1.6）的設定卡寫的是
+> `$DSH_HOME/settings.yaml` 的 `chinese-script-policy:` 區塊，那是**全機器一份**。0.1.7 把那份文件
+> **一次性匯入**後改名成 `settings.yaml.imported`（每個 section 寫進**同名 entry** 的 profile patch；
+> 被執行中的組合拒絕的 section 只留在改名後那一份裡），從此設定住在 **profile 的 patch**。
+> 所以升級之後：**在 GUI 改開關只影響你正在跑的那個 profile**，`headless` 不會被連帶改掉——
+> 反過來說，**要讓兩個 profile 一致就得各改一次**。
 
-**守衛已經有「每個工作區一份」的機制**（就是上表的放行層，讀的是**執行時 cwd**），
-只是目前只用在「放行」。要讓「軸」也每工作區一份，得讓守衛在**每次攔截時**讀工作區裡的一個
-設定檔（讀不到就回退到設定卡的值），並在卡片上說明「這個工作區被覆寫」——那是功能變更，
-**尚未實作**。
+**守衛已經有「每個工作區一份」的機制**，就是上表的放行層（讀的是**執行時 cwd**），只是目前只用在「放行」。
+要讓「軸」也每工作區一份，得讓守衛在**每次攔截時**讀工作區裡的一個設定檔（讀不到就回退到 profile patch 的值），
+並在卡片上說明「這個工作區被覆寫」——那是功能變更，**尚未實作**。
 
-列的 `config` 是開關的**基底層**，設定卡寫的是**使用者層**，預設值在 `index.mjs`
-（`resolveSection`）：
+**值存在 profile patch，為什麼改了不必重啟**：`Config` 的六個欄位全部 `.volatile()`，
+loader 收到變更時**不重跑 `apply()`**，而是把新值寫進**同一批參考物件**再發
+`loader/volatile-update`。這正是守衛**每次要用時才** `config.<欄位>.get()` 的原因：
+若在 `apply()` 期間把值快取起來，開關就被凍結在啟動那一刻（改了看起來有生效、其實沒有）。
+瀏覽器那半也是同一個模型：卡片用 `ctx.configForms.get(entryId)` 拿到的表單會 `subscribe()`，
+並用**一次原子** `mutate(ops, revision)` 把改動過的欄位送出去（帶上讀到的 revision，
+所以別人同時改過會被拒絕，而不是半套寫入）。
+
+列的 `config` 是開關的**基底層**，預設值同時宣告在 `index.mjs` 的 `Config`（schema 預設）
+與 `resolveSection`（純函式，給測試與只拿得到原始 YAML 的呼叫者用），兩邊由 `test:plugin` 釘住一致：
 
 ```yaml
+# 這一段就是本套件出貨的 cordis.patch.yml（基底層）；設定卡改的值不是寫回這裡，
+# 而是寫進 profile 自己的 cordis.patch.yml（$DSH_HOME/profiles/<名>/cordis.patch.yml）。
 - id: chinese-script-policy
   name: chinese-script-policy
   config:
@@ -100,7 +145,9 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
 | `simplified` | 抓到**繁體專有字**就處理，訊息請模型改成簡體；日文新字體的對照也會給**簡體**寫法（`発 -> 发`）<!-- check-ok --> |
 | `off` | 不檢查腳本軸，只查語體與日文 |
 
-（舊版的設定檔把這裡存成布林：`true` ＝ `traditional`、`false` ＝ `off`，讀進來仍然照原意運作。）
+（舊版 1.0～1.1 把這裡存成布林：`true` ＝ `traditional`、`false` ＝ `off`。那個 profile patch 現在可能
+還躺在 `$DSH_HOME/profiles/<名>/cordis.patch.yml` 裡，所以 `Config` 的 `script` union **刻意保留這兩種
+布林拼法**——schema 若直接拒收，那一列會在啟動時驗證失敗，等於整條守衛無聲消失。）
 
 ### 檔案類型陷阱：`.ps1`／`.cmd` 的寫入（`fileTypes`）
 
@@ -158,7 +205,9 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
 |---|---|---|
 | 寫入含簡體字的檔案 | 被擋下，訊息 `BLOCKED by chinese-script-policy…` | 檔案直接寫成功 |
 | 外掛那一列 | `dsh --profile web --dump-config` 看得到 `id: chinese-script-policy` | 只剩 bundle 清單裡的名字，沒有列 |
-| 設定卡 | 「外掛 → Plugin configuration」看得到「中文用字規範」，改了立刻生效（client bundle 是每次請求即時產生的，**只要重新整理頁面**） | 看不到 → 檢查宿主 `describe()` 有沒有列出這個 namespace（schema 少了 `toJSON()` 會讓整頁的卡都消失） |
+| 宿主啟動輸出 | 沒有這一列的訊息 | `chinese-script-policy: pending (waiting for service: …)` 或 `did not activate`／`startup failed` → **那一列的 `apply()` 完全沒跑**，守衛與技能都沒掛上，而且**沒有紅字**（這條 entry 不在必要清單裡，啟動照樣成功） |
+| 設定卡 | **Plugins 頁**看得到「中文用字規範」，改了立刻生效（client bundle 是每次請求即時產生的，**只要重新整理頁面**） | 看不到 → 該 namespace 沒被服務：`Config` 沒匯出、六個欄位有一個不是 `.volatile()`，或那一列沒有 `id`（namespace ＝ entry id）。`node dev\dsh-boot-check.mjs` 會直接指名是哪一種 |
+| 整個 GUI | 頁面正常載入 | **整頁起不來**（`web boot: N entries did not activate`）→ 幾乎都是 client 半側的 `inject` 寫了一個這個版本的 client 沒有的服務（0.1.7 就是 `settingsScope` 被移除那次）；`npm run test:plugin` 會把它釘在清單上 |
 | 用 `hooks.json` 時 session 裡的 `hook/invoked` / `hook/result` | `"decision":"deny","exitCode":2` | `"decision":"pass","exitCode":1`，`stderrSummary` 是 `Cannot find module …` |
 
 放行規則：該行有 `check-ok` 或 `simplified-example` 標記就跳過；
@@ -166,11 +215,15 @@ dsh plugin --profile headless add C:\path\to\chinese-script-policy
 `.tradzhignore` 讀的是**執行時 cwd**（＝session 工作區），所以每個工作區要各放一份。
 
 > **檢查是「自己壞掉就放行」的設計**（絕不能因為工具出錯而中斷使用者的回合），
-> 所以它故障時是**無聲的**。兩層測試就是在防這個：`npm run test:hook` 用真的子行程
+> 所以它故障時是**無聲的**。三層測試就是在防這個：`npm run test:hook` 用真的子行程
 > 與真的管線跑 hook，而且**分成兩層**——一層直接跑腳本（行為對不對），另一層把
 > `hooks.json` 的指令用真的 shell ＋ 空環境跑一次（**指令到底起不起得來**）；
-> `npm run test:plugin` 則把外掛的決策跑在**真的 cordis waterfall** 上，
-> 並把設定卡的瀏覽器端程式用替身 React 評估、渲染一次，確認它真的會產生卡片。
+> `npm run test:plugin` 把外掛的決策跑在**真的 cordis waterfall** 上、驗 `Config` 的 volatile 契約、
+> 用替身 React 真的驅動一次設定卡（開卡→改值→儲存，斷言**一次 `mutate`、帶讀到的 revision、
+> 只送改動的欄位**），並釘住 client `inject` 的每個名字都在這個版本的 client 服務清單裡
+> （那一條就是 0.1.7 那次「整個 GUI 起不來」的守門）；
+> **`npm run test:boot`（`dev/dsh-boot-check.mjs`）** 則是真的起一個丟棄式 DSH 做端到端驗證——
+> 形狀對了不等於掛得上去，宿主啟動、`settings/describe`、client bundle 三件事要真的量過。
 
 ## 輸出把關：本機 LLM 的答案（`examples/llm-proxy/llm-guard-proxy.mjs`）
 

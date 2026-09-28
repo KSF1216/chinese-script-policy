@@ -22,6 +22,7 @@
 ```powershell
 cd "$env:USERPROFILE\.dsh\skills\chinese-script-policy"
 npm test                # 三個檢查指令的回歸 + hook + 用真實註冊表列出並載入技能 + 網頁比對 + 代理的 HTTP 邊界
+npm run test:boot       # 起一個丟棄式 DSH 實例（自己的 $DSH_HOME＋port），驗外掛真的啟動、namespace 真的被服務、client bundle 真的跑得完
 npm run test:tarball    # 打包 → 解開 → 在解開的 package 裡再跑一次 npm test（＝使用者真正拿到的那份）
 npm run audit           # Big5／GBK 字表稽核（抓「標準繁體字被當成簡體」）
 npm run check           # repo 自己也要是乾淨繁體
@@ -34,6 +35,7 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 | 指令 | 防的是什麼 |
 |---|---|
 | `npm test` | 轉換選錯字、粵語／日文偵測過度或不足、**hook 壞掉（它壞掉是無聲的）**、外掛註冊欄位漏掉（`source` 就是這樣抓到的）、**CLI 旗標接線**（`test:cli` 跑文件上的每一個配方）、網頁與 CLI 不同步、**代理的輸出邊界**（非串流、`tool_calls` 不動、原生 `/completion` 形狀、乾淨回應逐位元組不變）、**repo 自己的腳本檔位元組規則**（`.ps1` 純 ASCII；`.cmd`／`.bat` 純 ASCII ＋ CRLF）、**每個 `npm run` 會用到的檔案都真的在白名單裡**、**最後還會跑 `test:repo`**：三軸檢查這份 repo 自己 |
+| `npm run test:boot` | **「形狀對了，但在真的 DSH 上活不活得起來」**：`npm test` 只驗形狀，驗不到「entry 被 park」「namespace 沒被服務」「整包 client bundle 跑不完」。它**故意不掛進 `npm test`**——需要一個 DSH 安裝與一個空 port，而且會起一個真的伺服器（丟棄式 `$DSH_HOME`，不碰使用者的 `~/.dsh`）。2026-09-28 新增，同日用它抓到並釘住 0.1.7 的設定 API 移植 |
 | `npm run test:tarball` | **「checkout 會過、使用者拿到的那份不會」**：把 tarball 解開後在裡面跑 `npm test`。2026-09-20 第一次跑就抓到兩個真的壞掉的地方（`cantonese-allow.json` 沒出貨 → 粵語軸失敗；`tools/cards.mjs` 沒出貨 → `test:cards` 會 `MODULE_NOT_FOUND`） |
 | `npm run audit` | 字表重新產生後又把 `峰 床 痴 秘 灶 粽` 之類的標準繁體字當成簡體 |
 | `npm run check` | 文件或程式碼裡混進簡體（刻意的示範要標 `simplified-example`） |
@@ -42,11 +44,12 @@ npm pack --dry-run      # 看打包清單與大小，確認沒多沒少
 | `npm run build:web` | 網頁版跟 CLI 不同步（改了字表卻忘了重新產生 `dist/tradzh.html`） |
 | `npm pack --dry-run` | 少包檔案（使用者裝了不能用）、多包檔案（隱私或肥檔） |
 
-八個都過才發布。
+九個都過才發布。
 
 > **打包清單有三處容易漏**（`package.json` 的 `files` 是白名單，沒列到就不會出貨）：
 > - **`lib/client.js`**：DSH 的設定卡（瀏覽器端）。漏了它，外掛本身照樣能擋寫入，
->   但 GUI 的「Plugin configuration」永遠不會出現那張卡，而且**不會有任何錯誤訊息**。
+>   但 Plugins 頁（0.1.7 起；舊版是「Plugin configuration」分頁）永遠不會出現那張卡，
+>   而且**不會有任何錯誤訊息**。
 >   它同時是 `exports["./client"]` 的目標，`dsh.client` 那段也在 `package.json`。
 > - **`dist/tradzh.html`**：離線網頁版（曾經漏掉，等於沒有人能下載現成的一份）。
 > - **執行 `npm run` 會用到的檔案**（2026-09-20 補）：`tools/cards.mjs`（`test:cards` 的入口，
@@ -237,7 +240,14 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 3. Pages 建好之後**根目錄會先 404 幾十秒**（部署還在滾），`/dist/tradzh.html` 先通、`/` 後通；
    不要看到 404 就以為設定錯了。
 
-## 3. 目前狀態（2026-09-26）
+## 3. 目前狀態（2026-09-28）
+
+> **1.4.0 已備好、尚未發布（2026-09-28）**：`package.json` 已是 `1.4.0`、離線頁已跟著重建、
+> `npm test`／`npm run test:boot` 全綠——**但它還沒上 npm**（registry 的 `latest` 仍是 1.3.1）。
+> 這一版是 DSH 0.1.7 的設定 API 移植（`settingsScope`／`installSection` 被官方移除，舊寫法會讓
+> **整個 GUI 起不來**），細節在 `CARD/done/PLAN-dsh-0-1-7-port.md`。⚠️ **0.1.7 起外掛需要
+> DSH ≥ 0.1.7**：那個版號之前的 DSH 沒有 `configForms` 這個服務，載入舊版會回到 pending（宿主不擋啟動、
+> 但**寫入守衛不會生效**）。§6 已有這一版的發布說明草稿。
 
 | 項目 | 狀態 |
 |---|---|
@@ -323,7 +333,7 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 | 0 | agent | **先查事實**：`npm view chinese-script-policy version`（或 `GET /<pkg>/latest`），把**查詢與輸出**貼進 `PUBLISHING-*` 卡的 `facts` | 2026-09-20 的事故：發布卡寫「發 1.3.1」，前提是 1.3.0 已發布，而 registry 上**從來沒有 1.3.0**（`latest` 是 1.2.0）。**形狀全綠、事實全錯**——所以「應該已經發了」不是狀態，是記憶 |
 | 1 | **使用者** | 決定**版號**（功能 → minor；文件與守門 → patch）。⚠️ 「下一個版號」不一定是 patch：**沒發布過的版號仍然是下一版** | 版號是唯一不能撤回的東西（unpublish 過的號碼永久保留、不能再用） |
 | 2 | agent | `npm version <v> --no-git-tag-version` → `npm run build:web` | 頁尾印版本號，**順序不能顛倒**；`test:web` 會逐位元組比對重建的頁面 |
-| 3 | agent | `npm test`（含 `test:cards`）→ `npm run test:tarball` → `npm run audit` → `npm pack --dry-run` | **checkout 會過 ≠ 使用者拿到的那份會過**（§1 的八個檢查） |
+| 3 | agent | `npm test`（含 `test:cards`）→ `npm run test:boot` → `npm run test:tarball` → `npm run audit` → `npm pack --dry-run` | **checkout 會過 ≠ 使用者拿到的那份會過**（§1 的九個檢查）；`test:boot` 另外回答「形狀對了，在真的 DSH 上活不活得起來」——它需要一個空的 port |
 | 4 | agent | 更新 §6 的發布說明（涵蓋**這段時間的全部改動**，不是只有最後一項）→ commit ＋ push `main` | GitHub（含 `raw`）立刻跟上；npm 只跟 tarball |
 | 5 | **使用者** | **在自己的終端機跑 `npm publish`**（安全金鑰三段式；非 TTY 會立刻 `EOTP`，而且網址被遮蔽成 `***`） | 下一節有完整的流程圖與判讀方法 |
 | 6 | agent | 等 `dist-tags.latest` 跳版（**約 1～3 分鐘**，publish 是非同步的）→ `GET /<pkg>/latest` 驗版本 → tarball 用 `?v=1` 繞 CDN 快取驗 | 幾分鐘內查到舊版**不是失敗**；看到 404 也先別重發 |
@@ -580,7 +590,8 @@ node scripts\tradzh.js --japanese --dir .                        # 連日文軸�
 | `PUBLISHING-chinese-script-policy.md` | **發布立場**（新卡種 `PUBLISHING-*`，2026-09-20）：路由 ＋ **必填 `facts`**（registry 現在真的是哪一版）＋ 驗收指令。散文在 `PUBLISHING.md`（本檔），那一張**不重述** | **active**（站著的；發布立場不是待辦） |
 | `VERIFICATION-chinese-script-policy.md` | **驗證立場**（對應的新卡種 `VERIFICATION-*`，2026-09-22 填成真的）：現在有機械在釘的面（逐面列指令與規模）＋ **必填的「未涵蓋」**（沒在驗的、只驗過一次的） | **active**（站著的） |
 | `LESSON-shell-chinese-bypasses-the-guard.md` | **教訓**（`LESSON-*` 在本 repo 的第一張，2026-09-26）：命令列裡的中文**繞過兩層寫入守門**（`git tag -m`／`git commit -m` 的訊息不經 hook，而 `test:repo` 只掃工作區的檔案、掃不到 git 物件） | **active**（紀錄，不關） |
-| `NEXT-market-submission.md` | 社群目錄投稿（`awesome-dsh-plugin`）：目錄檔在 `main` 上仍是 404、也沒有來自 `KSF1216` 的 PR——**發布那條線唯一還沒做的一步** | **blocked**（要動你的 GitHub 帳號開 PR；`-DryRun` 已完成） |
+| `PLAN-market-submission.md` | 社群目錄投稿（`awesome-dsh-plugin`）：目錄檔在 `main` 上仍是 404、也沒有來自 `KSF1216` 的 PR——**發布那條線唯一還沒做的一步** | **blocked**（要動你的 GitHub 帳號開 PR；`-DryRun` 已完成） |
+| `PLAN-dsh-0-1-7-port.md` | DSH 0.1.7 的設定 API 移植（`settingsScope`／`installSection` 被官方移除，舊寫法讓**整個 GUI 起不來**）：宿主 volatile `Config`、瀏覽器 `configForms` ＋ `plugins.item`、新增 `test:boot` | **done**（2026-09-28；三條守門各自故意弄壞驗證過） |
 
 **`VERIFICATION-chinese-script-policy.md`**（2026-09-22 填成真的）——它原本是產生器留下的**沒填過的骨架**：
 `cards` 少了 `VERIFICATION-*.md` 這個 glob，所以那張卡既不載入、也沒人發現它的 `acceptance`／`facts`
@@ -670,6 +681,62 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 
 > **1.3.1 起，GitHub Release 的 body 用「English」那一份**（本站的對外門面已經是英文為主）；
 > 同一個版號底下的中文版留著當對照，兩份是同一個內容的兩種語言。
+
+### 1.4.0 — DSH 0.1.7 的設定 API 移植（**尚未發布**，草稿）
+
+```markdown
+### 1.4.0 — DSH 0.1.7 的設定 API 移植
+
+> **需要 DSH ≥ 0.1.7**。0.1.7 移除了 `ctx.settings.installSection()` 與客戶端的
+> `ctx.settingsScope`，舊寫法會讓那個外掛在瀏覽器端 **pending**，而瀏覽器的啟動稽核對任何
+> pending 的 client 模組直接 throw——**整個 Web GUI 起不來**（宿主端則只是警告，
+> 但寫入守衛會**無聲失效**）。這一版把外掛改成新版 API。
+
+**修正**
+- 宿主半側改用 `Config`（schemastery，六個欄位全部 `.volatile()`），設定值改存
+  **profile 的 `cordis.patch.yml`**；`script` 的合法值保留舊版的布林拼法，舊 profile 仍可載入。
+- 瀏覽器半側改用 `ctx.configForms`（namespace ＝ profile entry id），並註冊進 Plugins 頁的
+  `plugins.item`；儲存改成**一次原子 `mutate`**（只送改動的欄位、帶讀到的 revision，衝突會被拒絕）。
+- `package.json` 新增 `peerDependencies: { "@deepseek-ai/schemastery": "~3.18.4" }`——
+  以目錄連結安裝（`dsh plugin add <path>`）時，harness 的那一份要靠這個宣告才解析得到。
+
+**給維護者**
+- 新增 `npm run test:boot`：起一個丟棄式 DSH 實例（自己的 `$DSH_HOME` 與 port，不碰使用者的 `~/.dsh`），
+  驗「宿主沒有任何 entry pending／failed」「`settings/describe` 真的服務這個 namespace」
+  「client bundle 整包可執行且外掛有註冊」。
+- `test:plugin` 新增兩條守門：client `inject` 的每個服務名都要在釘住的新版清單裡（這條就是這次故障的守門）、
+  以及 volatile 契約（schema 預設值＝守衛預設值、舊布林仍可驗證、未宣告的值要被拒）。
+```
+
+**English version (this is the one to paste into the GitHub Release):**
+
+```markdown
+### 1.4.0 — ported to the DSH 0.1.7 settings API
+
+> **Requires DSH >= 0.1.7.** DSH 0.1.7 removed `ctx.settings.installSection()` and the client-side
+> `ctx.settingsScope`. A plugin still using them stays **pending** on the client, and the browser's
+> boot audit THROWS on any parked client entry - which takes the whole Web GUI down (on the host it is
+> only a warning, but the write guard then never runs, silently). This release ports the plugin.
+
+**Fixed**
+- Host half now declares a schemastery `Config` whose six fields are all `.volatile()`; values live in
+  the active profile's `cordis.patch.yml`. `script` still accepts the old boolean spelling, so a profile
+  written by 1.0-1.1 keeps loading.
+- Browser half now uses `ctx.configForms` (namespace = profile entry id) and registers into the Plugins
+  page's `plugins.item` list slot. Saving is ONE atomic `mutate` carrying only the changed fields and the
+  revision the card read, so a concurrent edit is refused instead of half-applied.
+- `package.json` declares `peerDependencies: { "@deepseek-ai/schemastery": "~3.18.4" }`: a bundle
+  installed by directory link (`dsh plugin add <path>`) resolves the harness's own copy through that
+  declaration.
+
+**For maintainers**
+- New `npm run test:boot`: boots a throwaway DSH instance (its own `$DSH_HOME` and port; the user's
+  `~/.dsh` is untouched) and checks that no host entry is parked or failed, that `settings/describe`
+  really serves this namespace, and that the served client bundle evaluates with our module registered.
+- `test:plugin` gained two guards: every name in the client `inject` list must exist in a pinned set of
+  this DSH's client services (that guard is this bug), and the volatile contract (schema defaults equal
+  the guard's defaults, the legacy boolean still validates, undeclared values are refused).
+```
 
 ### 1.3.1 — Windows 腳本檔類型的寫入守衛（1.3.0 從未發布，改由這個版號承載）
 
@@ -997,7 +1064,7 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 
 > **現況（2026-09-26 實測）**：還沒被收錄——目錄檔 `data/plugins/KSF1216__chinese-script-policy.yml`
 > 在 `main` 上是 **404**，PR 清單（`state=all`）也沒有來自 `KSF1216` 的紀錄。
-> **狀態與待辦在 `CARD/blocked/NEXT-market-submission.md`**（那一張是唯一來源；這一節只寫怎麼投）。
+> **狀態與待辦在 `CARD/blocked/PLAN-market-submission.md`**（那一張是唯一來源；這一節只寫怎麼投）。
 
 **DSH 本體沒有市集**——在 DSH checkout 裡搜過檔名、目錄與文件，`marketplace` 完全不存在。
 市集是社群做的，但**共用同一份目錄**：

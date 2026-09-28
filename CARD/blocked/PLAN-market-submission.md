@@ -1,5 +1,5 @@
 ---
-id: next-market-submission
+id: plan-market-submission
 status: blocked
 blocked_by: 使用者——投稿要動你的 GitHub 帳號（fork ＋ PR），而 `awesome-dsh-plugin` 的 CI 也要求 repo 至少 1 天舊（那條早就滿足）；決定「要不要投」與「用哪個帳號跑」都在你
 updated: 2026-09-26

@@ -131,3 +131,50 @@ bump 版號 → 重建 `dist/tradzh.html` → §6 發布說明改寫成 1.3.1（
 「忘記發布」而變紅）。剩下的未完成項是**社群目錄投稿**（`awesome-dsh-plugin`：目錄檔
 `KSF1216__chinese-script-policy.yml` 在 main 上仍是 404、也沒有來自 `KSF1216` 的 PR），見 `PUBLISHING.md` §7。
 本 repo 沒有 `OPEN-` 卡。
+
+## 第四輪（2026-09-28）：DSH 0.1.7 把設定 API 換掉，外掛移植
+
+**做了什麼**：使用者把 DSH 更新到 **0.1.7-rc.2** 之後啟動 DSH，看到
+`chinese-script-policy: pending (waiting for service: settingsScope)`，**而且整個 Web GUI 起不來**，
+只好把外掛從 `web` profile 移除。本輪查明這是**兩層不同的後果**（宿主只是 warning、但那條 entry 的
+`apply()` 完全不執行＝守衛無聲死亡；瀏覽器的啟動稽核對任何 pending 的 client 模組**直接 throw**＝整個
+GUI 掛掉），並把外掛移植到新 API（宿主 volatile `Config`、瀏覽器 `configForms` ＋ `plugins.item`）。
+過程、對照表與取捨在 `CARD/done/PLAN-dsh-0-1-7-port.md`。
+
+**實測數字（2026-09-28，全部當輪實跑）**：
+
+| 指令 | 結果 |
+|---|---|
+| `npm test` | **exit 0**（`test:plugin` 43＋44＋14、`test:api` 81、`test:proxy` 30、`test:web` 170、`test:repo` 三軸、`test:cards`） |
+| `node dev/dsh-boot-check.mjs` | **PASS**：丟棄式實例（自己的 `$DSH_HOME`＋port 3099）啟動**零個 entry pending／failed**；`settings/describe` 回 **19 個 namespace，含 `chinese-script-policy`**（`autoGenerate:false`）；頁面的 **68 個 client bundle（22404114 bytes）全部評估成功**、我們的模組註冊 `inject=["slots","locale","configForms"]`；**實際寫入過一次**（`settings/mutate`）→ 值出現在磁碟上的 `profiles/web/cordis.patch.yml`、`describe` 讀回 `mode=warn`、而**舊 revision 的第二次寫入被拒**（revision 柵欄） |
+| `npm run build:web` ＋ `node scripts/web-selftest.mjs` | 頁尾版本號跟著 **1.4.0** 重建；170 checks 全過（committed `dist` 不陳舊） |
+| `node scripts/tradzh.js --dir .` | clean（2637 字） |
+| `npm run test:tarball` | PASS |
+
+**故意弄壞（三條都確認會紅，事後 SHA-256 比對一致）**：
+
+| 弄壞什麼 | 結果 |
+|---|---|
+| 宿主 `inject` 加一個沒有 impl 的服務 | `FAIL the host reported inactive entries` ＋ namespace 不再被服務 |
+| 拿掉 `export const Config` | 宿主啟動乾淨，但 `FAIL the host does not serve the chinese-script-policy namespace` |
+| client `inject` 改回 `settingsScope`（原故障） | `FAIL the browser half injects a service this DSH client does not provide (the whole GUI would fail to boot): ["settingsScope"]` |
+
+**修掉的問題與教訓**：
+
+1. **同一個字串在兩層的嚴重程度不一樣**：`pending (waiting for service: …)` 在宿主是 warning
+   （不在必要清單裡就不擋啟動），在瀏覽器是 **throw**。所以「DSH 起不來」的真正兇手是 client 半側，
+   而宿主那半側的傷害是**安靜的**（守衛整條不執行）——兩個都要看，不能只看哪一邊有紅字。
+2. **linked 安裝的 bare import 需要 `peerDependencies`**：`dsh plugin add <本目錄>` 是 `link:`，
+   Node 用 realpath 解析，本專案與上層都沒有 `node_modules`。DSH 的 linked-root peer-aware
+   ancestor lookup 只認**宣告在 `package.json` 的 peer 名**，且該名要在 runtime table 裡
+   → 不宣告 schemastery 就是宿主半側載入失敗（＝守衛無聲死亡）。
+3. **「只用 stub 的 `require` 實例化別人的模組」會製造假失敗**：`dev/dsh-boot-check.mjs` 因此
+   只實例化**自己**的模組，其餘只驗「整包評估得完、每個 factory 都有註冊」。假警報是守門唯一的死因。
+4. **`resolveSection` 這種純函式要同時吃兩種形狀**：新 API 下 `config.<field>` 是 `{get()}`，
+   但測試與舊文件給的是純值。兩種都讀（`readSwitch`），並且**每次要用時才讀**——
+   volatile 變更不會重跑 `apply()`，把值快取起來等於把開關凍結。
+
+**還沒做**：**1.4.0 尚未發布**（版號與離線頁已備好、`npm test` 全綠；`npm publish` 依慣例由使用者
+在自己的終端機執行，四處露出點見 `PUBLISHING.md` §2／§4）。另外 `project-discipline-board`
+（`AIPMSkills` 工作區）有**同一個病**：`exports.inject` 仍寫 `settingsScope`、宿主半側仍用
+`ctx.settings.installSection`——不在本 repo 的守門範圍，需要那個工作區自己的 session 處理。

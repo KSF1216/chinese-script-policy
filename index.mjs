@@ -19,8 +19,23 @@
 // dependency — no second plugin — to get write-time blocking;
 // hooks.json stays for harnesses that speak the Claude Code hook protocol.
 //
-// The guard reads its switches from a settings section, so a settings card can
-// turn it off, warn instead of block, or drop one axis, without editing YAML.
+// The guard reads its switches from the plugin's OWN configuration, declared
+// below as a schemastery `Config` whose fields are all `.volatile()`. That is
+// the DSH 0.1.7 contract for a plugin that can be edited while it runs:
+//
+//   * the fields are what the Plugins page offers for this entry (the settings
+//     namespace IS the profile entry id), and a write lands in the active
+//     profile's `cordis.patch.yml`;
+//   * a volatile-only change does NOT remount the plugin: the loader writes the
+//     new value into the SAME reference objects and emits
+//     `loader/volatile-update`. So every read goes through `field.get()` at the
+//     moment of use - caching a value during apply() would freeze the switch.
+//
+// The 0.1.6 API (`ctx.settings.installSection(...)` plus a hand-rolled
+// descriptor carrying toJSON()/type/dict) no longer exists and has no shim: the
+// schema IS the declaration now. That is why this file imports schemastery -
+// package.json declares it as a peerDependency, which is what lets a *linked*
+// bundle resolve the harness's own copy instead of shipping a second one.
 //
 // SKILL.md stays the single source of truth for name/description/whenToUse; the
 // frontmatter is parsed here rather than duplicated as constants. The body is
@@ -34,6 +49,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import z from '@deepseek-ai/schemastery'
 
 export const name = 'chinese-script-policy'
 export const inject = ['skills']
@@ -44,7 +60,12 @@ const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const lib = require('./scripts/lib.js')
 
-/** Settings namespace holding this plugin's switches. */
+/**
+ * The settings namespace, which in DSH 0.1.7 IS the profile entry id: the form
+ * for this plugin is addressed by the id its loader row declares, so this string
+ * has to stay equal to `id:` in cordis.patch.yml. A row without an `id` gets a
+ * random one from the loader, and no form can ever address it.
+ */
 export const SETTINGS_NAMESPACE = 'chinese-script-policy'
 /** Tools whose content the guard inspects. */
 export const GUARDED_TOOLS = ['write', 'edit']
@@ -54,61 +75,77 @@ const CONTENT_FIELDS = ['content', 'new_string', 'newText', 'new_str', 'text', '
 const PATH_FIELDS = ['file_path', 'path', 'file']
 
 /**
- * Resolve the settings section: the plugin row's `config` is the base layer, a
- * settings card writes the user layer on top, and these are the defaults.
+ * The plugin's declared configuration (DSH 0.1.7). Every field is `.volatile()`,
+ * which is what puts it on the Plugins page and what makes a change land in the
+ * running reference objects instead of remounting the plugin.
  *
- * Hand-rolled instead of a schemastery schema on purpose: this package has no
- * dependencies (it must install anywhere, and its tests run without
- * `npm install`), and the settings core only CALLS the schema with the merged
- * layers while REGISTERING a namespace.
+ * `script` keeps the old boolean spelling in its union on purpose: versions
+ * 1.0-1.1 stored `true` (= traditional) and `false` (= off) in a settings
+ * section, and a profile patch written back then has to keep loading - a schema
+ * that rejects it would take the guard down, silently, at boot.
+ */
+export const Config = z.object({
+  enabled: z.boolean().default(true).volatile(),
+  mode: z.union(['block', 'warn']).default('block').volatile(),
+  script: z.union(['traditional', 'simplified', 'off', z.boolean()]).default('traditional').volatile(),
+  register: z.boolean().default(true).volatile(),
+  japanese: z.boolean().default(true).volatile(),
+  fileTypes: z.union(['off', 'warn', 'block']).default('warn').volatile()
+})
+
+/**
+ * Read one declared field, whichever shape it arrives in.
  *
- * Describing is a different matter, and the first version of this file learned
- * that the hard way: the GUI's card list is built from the host's
- * `settings.describe()`, which needs `schema.toJSON()`, and redaction walks the
- * schema's own `type`/`dict`. Without them describe() throws
- * "registration.schema.toJSON is not a function" - taking EVERY card in the
- * Plugin configuration tab down with it, not just ours. So the resolver carries
- * the same descriptor a schemastery schema would produce for these six fields.
+ * With `Config` declared, `apply()` receives a resolved section whose volatile
+ * fields are `{ get() }` references - so a switch flipped in the GUI is visible
+ * on the very next read - while the pure tests (and any caller holding only raw
+ * YAML) pass plain values. Both are real, so both are read here.
  *
- * @param {unknown} value - merged raw layers.
+ * @param {Record<string, unknown>} raw - resolved section or plain object.
+ * @param {string} key - field name.
+ * @returns {unknown} the current value, or undefined when the field is unset.
+ */
+function readSwitch(raw, key) {
+  const value = raw[key]
+  if (value && typeof value === 'object' && typeof value.get === 'function') return value.get()
+  return value
+}
+
+/**
+ * Resolve the switches into the plain shape the guard works with.
+ *
+ * The defaults here mirror `Config` exactly, and `resolveSection` is what the
+ * tests drive directly, so it must keep working with a plain object and with
+ * nothing at all.
+ *
+ * @param {unknown} value - resolved section, plain layers, or undefined.
  * @returns {{enabled: boolean, mode: 'block'|'warn', script: 'traditional'|'simplified'|'off', register: boolean, japanese: boolean, fileTypes: 'off'|'warn'|'block'}}
  */
 export function resolveSection(value) {
   const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  const mode = readSwitch(raw, 'mode')
+  const script = readSwitch(raw, 'script')
+  const fileTypes = readSwitch(raw, 'fileTypes')
   return {
-    enabled: raw.enabled !== false,
-    mode: raw.mode === 'warn' ? 'warn' : 'block',
+    enabled: readSwitch(raw, 'enabled') !== false,
     // Which script this project stores. Three states, not a checkbox:
     // 'traditional' (default) flags Simplified-only glyphs, 'simplified' flags
-    // Traditional-only glyphs, 'off' skips the axis. `false` is the old spelling of
-    // 'off' and `true` of 'traditional', so a section stored by an older version
-    // keeps meaning what it meant.
-    script: raw.script === 'simplified' ? 'simplified'
-      : (raw.script === 'off' || raw.script === false) ? 'off'
+    // Traditional-only glyphs, 'off' skips the axis. `false` is the old spelling
+    // of 'off' and `true` of 'traditional', so a section stored by an older
+    // version keeps meaning what it meant.
+    mode: mode === 'warn' ? 'warn' : 'block',
+    script: script === 'simplified' ? 'simplified'
+      : (script === 'off' || script === false) ? 'off'
         : 'traditional',
-    register: raw.register !== false,
-    japanese: raw.japanese !== false,
+    register: readSwitch(raw, 'register') !== false,
+    japanese: readSwitch(raw, 'japanese') !== false,
     // The Windows file-type traps (lib.fileTypeTrap). It owns a switch of its own, and it
     // defaults to WARN rather than block on purpose: this rule acts on other people's files,
     // and blocking by default would look broken to someone who never asked for it.
     // 'off' | 'warn' (default) | 'block'.
-    fileTypes: raw.fileTypes === 'off' ? 'off' : (raw.fileTypes === 'block' ? 'block' : 'warn')
+    fileTypes: fileTypes === 'off' ? 'off' : (fileTypes === 'block' ? 'block' : 'warn')
   }
 }
-
-/** Field descriptors: the shape schemastery's toJSON() would emit for this section. */
-export const SECTION_FIELDS = {
-  enabled: { type: 'boolean' },
-  mode: { type: 'string' },
-  script: { type: 'string' },
-  register: { type: 'boolean' },
-  japanese: { type: 'boolean' },
-  fileTypes: { type: 'string' }
-}
-
-resolveSection.type = 'object'
-resolveSection.dict = SECTION_FIELDS
-resolveSection.toJSON = () => ({ type: 'object', dict: { ...SECTION_FIELDS } })
 
 function pickField(obj, names) {
   if (!obj || typeof obj !== 'object') return null
@@ -212,21 +249,36 @@ function registerSkill(ctx) {
 export function apply(ctx, config) {
   registerSkill(ctx)
 
-  // Switches: the row config is the base layer, the settings card writes the user
-  // layer. When the settings service is absent the row config still applies.
-  let current = () => resolveSection(config)
+  // The switches live in this module's own `Config`, so there is no section to
+  // install any more. What remains is the companion policy a plugin with its own
+  // page declares: "do not synthesize a form for me".
+  //
+  // It is OPTIONAL and deliberately rides a child context: `settings` may not be
+  // composed at all (a bare headless profile), and a service named in the
+  // module-level `inject` that is missing would park this whole plugin - guard,
+  // skill registration and all - which is exactly the failure this port is
+  // fixing. So: never add 'settings' to `inject`.
   if (typeof ctx.inject === 'function') {
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, SETTINGS_NAMESPACE, resolveSection, config, {
-        setSource: (source) => { current = source },
-        onChange: () => {}
+    try {
+      ctx.inject(['settings'], (settingsCtx) => {
+        const settings = settingsCtx.settings
+        if (!settings || typeof settings.configure !== 'function') return
+        const configure = () => settings.configure({ auto: false }, ctx.fiber)
+        if (typeof settingsCtx.effect === 'function') {
+          settingsCtx.effect(configure, 'chinese-script-policy: settings policy')
+        } else {
+          configure()
+        }
       })
-    })
+    } catch { /* a settings policy is a convenience; the guard must not depend on it */ }
   }
 
   if (typeof ctx.on !== 'function') return
   ctx.on('tools/pre-execute', async (exec, next) => {
-    const settings = current()
+    // Read on EVERY call, never cached during apply: a volatile field is a live
+    // reference the loader writes into, so this is what makes a switch flipped in
+    // the GUI take effect without remounting the plugin.
+    const settings = resolveSection(config)
     let hit
     try {
       const name = exec && exec.name
