@@ -104,5 +104,6 @@ PASS
 
 - **`plugins.item` 的 `props.form` 沒有用**：官方四個頁面都無視它、自己 `configForms.get(ns)`，所以本卡照做。型別上它是 optional，依賴它會在某些組合下拿到 `undefined`。
 - **其他 client 模組的 instantiation 不判紅**：`dev/dsh-boot-check.mjs` 只用 stub 的 `require` 實例化**我們自己的**模組。用 stub 實例化別人會產生假失敗（實測 6 個官方模組會死在 `react.memo is not a function`，那是 stub 的錯不是模組的錯），把別人的假失敗算進來就是一個沒人信的守門。
-- **`project-discipline-board` 有同一個病**（`exports.inject` 仍寫 `settingsScope`、宿主半側仍用 `settings.installSection`）。它屬於 `AIPMSkills` 那個工作區，**沒有**在這張卡裡動。
+- **`project-discipline-board` 當時有同一個病**（`exports.inject` 仍寫 `settingsScope`、宿主半側仍用 `settings.installSection`）。它屬於 `AIPMSkills` 那個工作區，**沒有**在這張卡裡動。**2026-09-28 稍晚更正**：它自己的 session 在同一天移植完成（client 的 `exports.inject` 已是 `['slots','remote','remote.workspaceFiles']`、README 寫明 0.1.7 移植、`bundle-check`／`host-check` 也加了「`settingsScope` 不可以再出現」的守門）。這條留著當教材：**「還沒修」這種話幾個小時就會過期。**
+- **發布結果（同日稍晚）**：1.4.0 已由使用者發布（`latest` = 1.4.0、`gitHead` = `77dd5d9`、64 檔、shasum `f9621993…`），tag `v1.4.0`（annotated `89234dd` → `77dd5d9`）與 GitHub Release 都已補上。第一次 `npm publish` 是從**家目錄**跑的（新開的終端機 cwd 不在 repo），`ENOENT package.json` 直接失敗——**發布前先確認 cwd 是 repo**。
 - **`compatibility.json`／版本准入沒有用到**：本套件不對 `@deepseek-ai/dsh-*` 宣告 peerDependencies，所以不會觸發新版 DSH 的版本拒絕；`schemastery` 不在比對範圍內（實測）。

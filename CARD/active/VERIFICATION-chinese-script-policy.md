@@ -13,7 +13,7 @@ facts: |
   `npm run test:tarball`              ->  PASS: the tarball a user receives passes the suite and ships no maintainer file
                                           ok the tarball holds no maintainer-only file (64 files, 1375 KB) ／ ok npm test passes inside the unpacked tarball
   `node tools\cards.mjs`              ->  cards: 5 card(s), 0 problem(s)
-  `npm view chinese-script-policy dist-tags.latest` -> 1.3.1（registry 的事實；本 repo 已備好 1.4.0 但**尚未發布**）
+  `npm view chinese-script-policy dist-tags.latest gitHead` -> latest = **1.4.0**、gitHead = **77dd5d9**（2026-09-28T14:10:56Z 發布；64 檔、shasum `f9621993…`）
   `node scripts\api-selftest.mjs`     ->  PASS: every documented web-application entry point exists and both recipes agree (81 checks)
   `node scripts\plugin-selftest.mjs`  ->  守衛 43 ／ 設定卡 44 ／ settings schema 14 checks，全過
   `node scripts\web-selftest.mjs`     ->  PASS: the page converts exactly like the CLI, its UI works, conversions leave the original text alone, and the committed copy is not stale (170 checks)

@@ -174,7 +174,18 @@ GUI 掛掉），並把外掛移植到新 API（宿主 volatile `Config`、瀏覽
    但測試與舊文件給的是純值。兩種都讀（`readSwitch`），並且**每次要用時才讀**——
    volatile 變更不會重跑 `apply()`，把值快取起來等於把開關凍結。
 
-**還沒做**：**1.4.0 尚未發布**（版號與離線頁已備好、`npm test` 全綠；`npm publish` 依慣例由使用者
-在自己的終端機執行，四處露出點見 `PUBLISHING.md` §2／§4）。另外 `project-discipline-board`
-（`AIPMSkills` 工作區）有**同一個病**：`exports.inject` 仍寫 `settingsScope`、宿主半側仍用
-`ctx.settings.installSection`——不在本 repo 的守門範圍，需要那個工作區自己的 session 處理。
+**發布（同日稍晚完成）**：使用者在自己的終端機發布 **1.4.0**。第一次（22:09:50）從**家目錄**跑，
+npm 直接 `ENOENT: <家目錄>\package.json`——**exit code 非 0、什麼都沒發**；第二次（22:10:23）
+改從 `…\.dsh\skills\chinese-script-policy` 跑才成功（`PUT 401` → web auth 輪詢六次 `202` → `200`（按下
+安全金鑰）→ `PUT 202` → `exit 0 / info ok`）。**registry 約 2.5 分鐘後跳版**（14:10:56Z → 14:13:20Z 實查）：
+`latest` = `1.4.0`、`gitHead` = `77dd5d9`（＝當時的 `main`）、**64 檔**、shasum `f9621993…`、
+`peerDependencies` 有帶上去。隨後補 **tag `v1.4.0`**（annotated `89234dd` → `77dd5d9`，已推）與
+**GitHub Release**（14:14:28Z，body 1,837 字元＝`PUBLISHING.md` §6 的 1.4.0 英文段，由機器從文件抽出、
+沒有手抄）。四個露出點當輪實查：本機＝commit ✓、`origin/main`＝`77dd5d9` ✓、raw README 與本機
+**SHA-256 相同** ✓、Pages 45 秒後頁尾 **v1.4.0** 且與本機 `dist/tradzh.html` **位元組相同** ✓、npm ✓。
+
+**還沒做**：**社群目錄投稿**（`awesome-dsh-plugin`：目錄檔在 `main` 上仍是 404、也沒有來自 `KSF1216`
+的 PR）——`CARD/blocked/PLAN-market-submission.md`。另外 `project-discipline-board`（`AIPMSkills`
+工作區）**已經被它自己的 session 在同一天移植完成**（`lib/client.js` 的 `exports.inject` 現在是
+`['slots','remote','remote.workspaceFiles']`、README 開頭也寫了 0.1.7 的移植說明）——本節原本寫
+「它有同一個病」，**那天稍晚就過期了**，這句話留著當教材：**事實要自己查，不要沿用上一次的結論**。

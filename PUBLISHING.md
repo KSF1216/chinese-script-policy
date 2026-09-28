@@ -242,22 +242,28 @@ Harness-neutral Traditional Chinese enforcer + offline converter (skill, DSH bun
 
 ## 3. 目前狀態（2026-09-28）
 
-> **1.4.0 已備好、尚未發布（2026-09-28）**：`package.json` 已是 `1.4.0`、離線頁已跟著重建、
-> `npm test`／`npm run test:boot` 全綠——**但它還沒上 npm**（registry 的 `latest` 仍是 1.3.1）。
+> **1.4.0 已發布（2026-09-28）**：使用者在自己的終端機發布，`PUT 202` 於 **14:10:56Z**，
+> registry 約 **2.5 分鐘後**（14:13:20Z 實查）跳版——`latest` = `1.4.0`、`gitHead` = `77dd5d9`
+> （＝當時 push 的 `main`）、**64 檔**、shasum `f9621993…`。tag `v1.4.0`（annotated `89234dd` → `77dd5d9`）
+> 與 GitHub Release（**14:14:28Z**，body ＝ §6 的 1.4.0 英文段）都已補上。
 > 這一版是 DSH 0.1.7 的設定 API 移植（`settingsScope`／`installSection` 被官方移除，舊寫法會讓
 > **整個 GUI 起不來**），細節在 `CARD/done/PLAN-dsh-0-1-7-port.md`。⚠️ **0.1.7 起外掛需要
 > DSH ≥ 0.1.7**：那個版號之前的 DSH 沒有 `configForms` 這個服務，載入舊版會回到 pending（宿主不擋啟動、
-> 但**寫入守衛不會生效**）。§6 已有這一版的發布說明草稿。
+> 但**寫入守衛不會生效**）。
+>
+> **第一次 publish 是失敗的，值得記著**：22:09:50 那次是從**家目錄**跑的（新開的終端機 cwd 不在 repo 裡），
+> npm 直接 `ENOENT: <家目錄>\package.json`——**exit code 非 0、什麼都沒發**。22:10:23 改從
+> `…\.dsh\skills\chinese-script-policy` 跑才成功。**發布前先確認 `pwd` 是 repo**（`npm publish` 不會幫你找 `package.json`）。
 
 | 項目 | 狀態 |
 |---|---|
 | GitHub repo | **已發布** —— `https://github.com/KSF1216/chinese-script-policy`（public、branch `main`） |
 | 歷史 | **2026-09-19 第二次刪掉重建，壓成單一 commit `25fcf31`（68 檔）**。原因：先前的 commit（`2e41eb7`／`a4bb684`／`ef61a98`）**內容與訊息裡有本機私人名稱**（私人專案資料夾名、本機微調模型名），而 force push／rebase 清不掉——實測舊 SHA 的 `raw` 仍回 200。驗收：舊 SHA 在 api 回 **422**、web／codeload／raw 全 **404**；Wayback 兩個端點都查無快照（`[]`，對照組 `example.com` 正常）。<br>（上一次：2026-09-18 壓成 `ae401bf`，tree 與刪除前相同 `0e4f5e25…`） |
 | About／topics | 已設（description **339 字**、topics 20 個、Website 指向 Pages）；重建後由 API 設回 |
-| GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200，且與本機 `dist/tradzh.html` 逐位元組相同 |
-| npm | **`latest` = `1.3.1`**（2026-09-26 03:16Z 發布，**62 檔**、shasum `c2f2022e…`；tarball 同時帶 `README.md` 與 `README.zh.md`）。上一個版本是 `1.2.0`（58 檔、`e571b2d5…`）。`1.0.0`／`1.1.0`／`1.1.1` 已 unpublish、`1.3.0` 從未發布——**這四個版號永久保留、不會再用**；被刪版本的 tarball 實測 **404** |
-| npm（發布紀錄） | 1.3.1 由**使用者在自己的終端機**發布（2026-09-26 03:16:08Z；agent 跑必然 `EOTP` 且網址被遮蔽成 `***`）。發布前四道全綠：`npm test`／`npm run test:tarball`／`npm run audit`／`npm pack --dry-run`（**62 檔**）；發布後的逐項查證在已結案的發布卡裡 |
-| git tag／Release | **`v1.3.1`**（annotated，指向 npm 記錄的 `gitHead` ＝ `9b653eb`，已推）與 **`v1.2.0`**（＋ 1.2.0 的 GitHub Release）。**1.3.1 的 GitHub Release 已建立**（2026-09-26T03:58:48Z，body ＝ §6 的 1.3.1 英文段；`releases` API 可查）。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
+| GitHub Pages | **已上線**：`/`、`/dist/tradzh.html` 都回 200；2026-09-28 push 後 45 秒重查，頁尾已是 **v1.4.0** 且與本機 `dist/tradzh.html` 逐位元組相同 |
+| npm | **`latest` = `1.4.0`**（2026-09-28T14:10:56Z 發布，**64 檔**、shasum `f9621993…`、`gitHead` `77dd5d9`；帶 `peerDependencies` `@deepseek-ai/schemastery`）。上一個版本是 `1.3.1`（2026-09-26，62 檔、`c2f2022e…`）。`1.0.0`／`1.1.0`／`1.1.1` 已 unpublish、`1.3.0` 從未發布——**這四個版號永久保留、不會再用**；被刪版本的 tarball 實測 **404** |
+| npm（發布紀錄） | 1.3.1 與 1.4.0 都由**使用者在自己的終端機**發布（agent 跑必然 `EOTP` 且網址被遮蔽成 `***`；1.4.0 那次的安全金鑰輪詢在 `…14_10_23…-debug-0.log`）。1.4.0 發布前九道全綠：`npm test`／`test:boot`／`test:tarball`／`audit`／`check`／`check:written`／`check:japanese`／`cards`／`pack --dry-run`（**64 檔**） |
+| git tag／Release | **`v1.4.0`**（annotated `89234dd`，指向 npm 記錄的 `gitHead` ＝ `77dd5d9`，已推）＋ **v1.4.0 的 GitHub Release**（2026-09-28T14:14:28Z，body ＝ §6 的 1.4.0 英文段，1,837 字元）。先前：`v1.3.1`（→ `9b653eb`）＋ 它的 Release、`v1.2.0`。⚠️ 舊的 `v1.0.0` tag 只存在本機——它指向重建前的 commit，不在新歷史裡，所以沒有推 |
 | ⚠️ 教訓 | **不要把「不該外流的名字」寫進會出貨的檔案**——哪怕只是為了禁止它們。守門機制可以出貨，名單要留在不進版控的 `.ship-deny.txt`（出貨掃描的說明在 §1）。片段拼接（`'local' + '-llm'`）擋得住自動掃描、擋不住人眼。**而且要看守門機制「沒掃到什麼」**：2026-09-19 發現出貨掃描只走 `package.json` 的 `files` 白名單，而 `package.json` 自己會出貨卻不在名單裡——那個每次安裝都會被讀到的檔案，掃描從來沒看過一眼（現已改成掃整個 repo） |
 
 ### 舊版內容要真的消失，只能刪掉 repo 重建（`--force` 不夠）
@@ -682,7 +688,7 @@ node "$env:USERPROFILE\.dsh\skills\project-discipline\scripts\cards-check.mjs" -
 > **1.3.1 起，GitHub Release 的 body 用「English」那一份**（本站的對外門面已經是英文為主）；
 > 同一個版號底下的中文版留著當對照，兩份是同一個內容的兩種語言。
 
-### 1.4.0 — DSH 0.1.7 的設定 API 移植（**尚未發布**，草稿）
+### 1.4.0 — DSH 0.1.7 的設定 API 移植（**已發布 2026-09-28**）
 
 ```markdown
 ### 1.4.0 — DSH 0.1.7 的設定 API 移植
